@@ -1,0 +1,3112 @@
+/* Every design value here comes from tokens.css, which the manifest loads first
+   (order is cascade order). No literal colour should appear below this line —
+   test/tokens.mjs fails the build if one does. */
+
+/* ===== Overlay Container ===== */
+#pnt-overlay-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--pnt-z-overlay);
+  pointer-events: none;
+}
+
+/* Every box carries the inspected element's own corner radii, written per corner
+   from JS — see applyRadii() in content.js for why a single calc() won't do. */
+#pnt-overlay-container > div,
+#pnt-overlay-container > svg {
+  position: fixed;
+  box-sizing: border-box;
+  transition: top var(--pnt-duration) var(--pnt-ease),
+              left var(--pnt-duration) var(--pnt-ease),
+              width var(--pnt-duration) var(--pnt-ease),
+              height var(--pnt-duration) var(--pnt-ease),
+              opacity var(--pnt-duration) ease;
+}
+
+/* Hover — the box-model bands and a quiet dashed outline around the element.
+   The margin band is a neutral, the padding band the accent, so the two stay
+   distinguishable in every theme without tokens of their own. */
+#pnt-margin-box  { border: 1px dashed rgb(from var(--pnt-text-3) r g b / 0.55); }
+#pnt-padding-box { border: 1px dashed rgb(from var(--pnt-accent) r g b / 0.4); }
+#pnt-content-box { border: none; }
+
+/* An SVG path rather than a border, so the dashes travel around the corner arc
+   instead of breaking at it — and so per-corner radii come out right. Still on
+   hover; on selection the same path comes up to the full accent at the ring
+   weight and starts to crawl. Slow ants — chosen in round two of the brand
+   directions over a ring, corner brackets and a glow. The 1.x sweep and bloom
+   are gone: a rotating gradient behind the thing you are judging was motion
+   competing with it. */
+#pnt-ants { overflow: visible; }
+#pnt-ants path {
+  fill: none;
+  stroke: rgb(from var(--pnt-accent) r g b / 0.7);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 5;
+  transition: stroke var(--pnt-duration) var(--pnt-ease),
+              stroke-width var(--pnt-duration) var(--pnt-ease);
+}
+
+#pnt-overlay-container.pnt-selected #pnt-ants path {
+  stroke: var(--pnt-accent);
+  stroke-width: var(--pnt-ring);
+  animation: pnt-march 1.6s linear infinite;
+}
+@keyframes pnt-march { to { stroke-dashoffset: -22; } }
+
+/* Selected — the bands stand down; the outline is the whole statement. */
+#pnt-overlay-container.pnt-selected #pnt-margin-box,
+#pnt-overlay-container.pnt-selected #pnt-padding-box {
+  border-color: transparent;
+}
+
+/* Everything that moves on its own has to stop here — the ants, the marquee,
+   the undo flash, and the Screenshot button's three states: the shutter, the
+   click flash and the check's draw-in. Anything animated must be listed, and
+   test/cdp.mjs emulates the preference and measures every entry on the real
+   chrome.
+
+   Every selector here has to OUTRANK the rule it quiets, not merely name the
+   same element. This block sits near the top of the file, so a rule declared
+   later at the same specificity beats it on source order, and a rule with
+   more specificity beats it wherever it sits — which is how the ants (whose
+   own rule goes through their container), the marquee and the undo flash all
+   kept moving under the preference until the check existed. Each entry now
+   carries at least the ancestors its own rule does; the tether at the end of
+   this block made the argument first. */
+@media (prefers-reduced-motion: reduce) {
+  #pnt-overlay-container.pnt-selected #pnt-ants path,
+  #pnt-overlay-container #pnt-edit-flash.pnt-edit-flashing,
+  #pnt-toolbar .pnt-bar button.pnt-loading svg circle,
+  #pnt-toolbar .pnt-bar button.pnt-flashing,
+  #pnt-toolbar .pnt-bar button.pnt-done svg polyline,
+  #pnt-label .pnt-insp-pic,
+  #pnt-overlay-container .pnt-insp-hl {
+    animation: none;
+  }
+
+  /* The lifted layer still lifts — it says which plane is meant — but snaps. */
+  #pnt-label .pnt-insp-stack .pnt-insp-plane {
+    transition: none;
+  }
+
+  /* Still, the states keep their information. The lens stays filled — its
+     accent fill is set outside the animation, so a stopped shutter is a
+     recording dot — and the check has to be drawn rather than left at the
+     offset its animation starts from. The click flash carries none: the lens
+     or the check follows it within a beat. */
+  #pnt-toolbar .pnt-bar button.pnt-done svg polyline {
+    stroke-dashoffset: 0;
+  }
+
+  /* The flash is the only way an undo on an off-screen element announces
+     itself, so zeroing the animation would remove information rather than
+     motion. It stays put and visible instead — the toast still says what
+     happened, and the ring says where. */
+  #pnt-overlay-container #pnt-edit-flash.pnt-edit-flashing {
+    opacity: 1;
+  }
+
+  /* The tether never animates on its own; it only glides. Stillness means the
+     glide goes, not the tether — it is the only thing left saying which
+     element the panel is editing, so removing it would remove information
+     rather than motion, the same call made for the flash just above.
+
+     Scoped through the container, as every entry above now is: the tether's
+     transitions are declared below, in its own section, and a matching
+     `#pnt-tether .pnt-tether-tick` at (1,1,0) would silently lose to them.
+     Adding the container makes it (2,1,0) — the same specificity-over-order
+     argument the Edit Mode section makes, and for the same reason: a section
+     reorder must not be able to break it. */
+  #pnt-overlay-container #pnt-tether .pnt-tether-tick,
+  #pnt-overlay-container #pnt-tether .pnt-tether-seg {
+    transition: none;
+  }
+
+  /* The rail's fade and the scroll shadows' fade are state changes, not
+     motion of their own, but stillness means they switch rather than ease. */
+  .pnt-rail,
+  #pnt-edit-panel .pnt-edit-head,
+  #pnt-edit-panel .pnt-edit-foot,
+  #pnt-edit-panel .pnt-edit-caret,
+  #pnt-edit-panel .pnt-edit-groupbody {
+    transition: none;
+  }
+
+  /* The handoff: content.js draws no travelling surface under the
+     preference, and the ticks simply appear. The crossfades of the label,
+     the toolbar, the ants and the panel remain — they are how the mode
+     changes hands, not motion for its own sake. */
+  #pnt-edit-morph { display: none; }
+  #pnt-tether.pnt-tether-enter .pnt-tether-tick { animation: none; }
+}
+
+/* ===== Redline =====
+   Held-Option spacing measurements. The nodes glide between hover targets on
+   the overlay's own curve; renderRedline() lifts them out of the glide with
+   .pnt-no-transition when tracking scroll, when a node fades back in, and
+   when a guide changes orientation. Nothing here self-animates — the dashed
+   guides deliberately don't march — so, like the overlay glide itself, this
+   section adds nothing to the reduced-motion block above (which quiets
+   animations, not positional transitions).
+
+   The wrapper is a direct child of #pnt-overlay-container and never moves;
+   the measurement nodes are its children, which keeps them out of reach of
+   the blanket `> div` glide at the top of this file — their transitions are
+   declared here, where the per-frame snap logic can reason about them. */
+#pnt-redline {
+  position: fixed;
+  inset: 0;
+  display: none;
+}
+
+.pnt-redlining #pnt-redline {
+  display: block;
+}
+
+/* border-radius is in the list for the hover box's corner morph; it is inert
+   on the square nodes. Pills size to their text — width/height never tween. */
+#pnt-redline .pnt-redline-hover,
+#pnt-redline .pnt-redline-line,
+#pnt-redline .pnt-redline-guide-h,
+#pnt-redline .pnt-redline-guide-v,
+#pnt-redline .pnt-redline-pill {
+  transition: top var(--pnt-duration) var(--pnt-ease),
+              left var(--pnt-duration) var(--pnt-ease),
+              width var(--pnt-duration) var(--pnt-ease),
+              height var(--pnt-duration) var(--pnt-ease),
+              border-radius var(--pnt-duration) var(--pnt-ease),
+              opacity var(--pnt-duration) ease;
+}
+
+#pnt-redline .pnt-redline-hover {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid var(--pnt-accent);
+}
+
+#pnt-redline .pnt-redline-line {
+  position: absolute;
+  background: var(--pnt-accent);
+}
+
+#pnt-redline .pnt-redline-guide-h {
+  position: absolute;
+  height: 0;
+  border-top: 1px dashed rgb(from var(--pnt-accent) r g b / 0.6);
+}
+
+#pnt-redline .pnt-redline-guide-v {
+  position: absolute;
+  width: 0;
+  border-left: 1px dashed rgb(from var(--pnt-accent) r g b / 0.6);
+}
+
+#pnt-redline .pnt-redline-pill {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: var(--pnt-accent);
+  color: var(--pnt-on-accent);
+  font: var(--pnt-weight-medium) var(--pnt-text-sm)/1 var(--pnt-font-mono);
+  letter-spacing: var(--pnt-tracking-num);
+  font-variant-numeric: tabular-nums;
+  padding: var(--pnt-gap-tight) var(--pnt-xs);
+  border-radius: var(--pnt-radius-sm);
+  white-space: nowrap;
+}
+
+/* Quiet overlay — an opt-in preference (redlineQuietOverlay). While measuring,
+   the box-model bands stand down so nothing painted sits under the measurement
+   lines; the ants stay, because you must still see what you're measuring from.
+   Opacity, so the container's own transition fades them out and back. */
+.pnt-redline-quiet.pnt-redlining #pnt-margin-box,
+.pnt-redline-quiet.pnt-redlining #pnt-padding-box,
+.pnt-redline-quiet.pnt-redlining #pnt-content-box {
+  opacity: 0;
+}
+
+/* The hush: visibility, not display or opacity. display would fight
+   layoutChrome's measurement pass (it forces display:block to read offset
+   sizes); opacity would leave the toolbar hit-testable and the label in
+   elementFromPoint's way. visibility keeps both laid out — so they reappear
+   exactly where layoutChrome kept them — while the page underneath becomes
+   a measurable redline target. Same precedent as #pnt-settings-btn.pnt-yielded
+   below, for the same reason. */
+.pnt-redlining #pnt-label,
+.pnt-redlining #pnt-toolbar {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* visibility normally inherits, but every node inside the toolbar declares
+   `all: initial` (see the Action Toolbar section), which resets visibility to
+   `visible` and severs the inheritance — hiding the rail alone leaves its
+   buttons showing. So the hide has to reach each descendant itself, and with
+   !important: those `all` declarations sit on higher-specificity selectors.
+   pointer-events gets the same treatment, or the invisible buttons would still
+   swallow the clicks that redline's re-anchoring depends on. The label needs
+   none of this — its children never reset, so they inherit the hide — and the
+   toolbar rule reaches it wherever the layout mounted it, inside the label
+   or on its own. */
+.pnt-redlining #pnt-toolbar * {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* ===== Tether =====
+   What says "this panel edits that element" now that Edit Mode has taken the
+   selection box away. Four solid ticks at the edge midpoints, sitting outside
+   the element, and one dashed run from the panel to the tick on the facing
+   edge. Everything lives in the ring of space outside the element's box — the
+   ticks lie flat along their edge rather than pointing at it, so they can only
+   ever be tangent to that clearance, never inside it.
+
+   Solid ticks against a dashed run is the whole grammar: dashed is Redline's
+   guide vocabulary and means reference, solid means subject. The weights say
+   which end is the thing being edited.
+
+   Same structure as the redline layer above, for the same reason — a wrapper
+   that never moves, holding nodes kept out of reach of the blanket `> div`
+   glide so renderTether() can decide per frame which snap and which glide.
+   Nothing here self-animates, so like the redline nodes this section adds no
+   animations to the reduced-motion block; its transitions are listed there
+   only so a stated preference for stillness also stops the glide. */
+#pnt-tether {
+  position: fixed;
+  inset: 0;
+  display: none;
+}
+
+.pnt-editing #pnt-tether {
+  display: block;
+}
+
+#pnt-tether .pnt-tether-tick,
+#pnt-tether .pnt-tether-seg {
+  position: fixed;
+  transition: top var(--pnt-duration) var(--pnt-ease),
+              left var(--pnt-duration) var(--pnt-ease),
+              width var(--pnt-duration) var(--pnt-ease),
+              height var(--pnt-duration) var(--pnt-ease),
+              opacity var(--pnt-duration) var(--pnt-ease);
+}
+
+#pnt-tether .pnt-tether-tick {
+  background: var(--pnt-accent);
+  border-radius: 1px;
+}
+
+/* Dashed via a border, not a background image: horizontal runs dash through
+   border-top and vertical through border-left, which is exactly how the
+   redline guides do it and keeps the dash phase consistent between them.
+
+   The weight is where the two part company. A redline guide is an aside — it
+   extends an edge so a measurement has something to measure against, and it
+   should stay quieter than the number it serves. The run is the only thing
+   saying which element this panel edits, and at 1px against 55% alpha it was
+   the faintest mark on screen while being the one carrying the meaning. At 2px
+   it matches the ticks it lands on, so the tether reads as one object at one
+   weight rather than as two solid stubs joined by a hairline.
+
+   2px is GEOMETRY.tetherThick, which the solver uses for the ticks. It cannot
+   be read from here — the tether geometry is pure and swept in
+   test/tether.mjs, with no DOM to ask — so this is a transcription. Change one,
+   change both, and the negative margin below with it.
+
+   The margin keeps the promise the geometry makes. A border grows inward from
+   the element's edge, so a run placed exactly on the tick's centre would paint
+   entirely to one side of it and land half its own weight low — the thicker the
+   stroke, the further off. Pulling back half the weight puts the stroke's
+   centreline back on the geometric path, which is what "the run lands on the
+   middle of the tick" has always meant. */
+#pnt-tether .pnt-tether-seg-h {
+  border-top: 2px dashed rgb(from var(--pnt-accent) r g b / 0.55);
+  margin-top: -1px;
+}
+
+#pnt-tether .pnt-tether-seg-v {
+  border-left: 2px dashed rgb(from var(--pnt-accent) r g b / 0.55);
+  margin-left: -1px;
+}
+
+/* Loud: a row is under the pointer, a gesture is open, or a value just landed.
+   The ticks lengthen and the run comes up to full strength. Nothing moves
+   closer to the element — the clearance is fixed, and amplifying it would be
+   the one change that could break the constraint. */
+.pnt-tether-loud #pnt-tether .pnt-tether-seg-h {
+  border-top-color: var(--pnt-accent);
+}
+
+.pnt-tether-loud #pnt-tether .pnt-tether-seg-v {
+  border-left-color: var(--pnt-accent);
+}
+
+/* ===== Edit Mode =====
+   The same hush, for the same reasons, plus one of its own: the outline goes.
+   The panel writes border-width, border-color, border-radius and box-shadow,
+   and ants drawn 2px outside the element sit on top of all four — you cannot
+   judge a 2px stroke through an accent stroke, or watch a corner round under
+   one. The whole outline goes, and the tether takes over the job of saying
+   which element this panel belongs to, working only in the space outside it. */
+/* Since round four the readout and the actions fade rather than vanish — the
+   handoff's first beat — and stay hidden for as long as the mode does. The
+   visibility flips only once the fade is over, on the exit duration going in
+   and at once coming back, so the return fades in on the label's own timing. */
+.pnt-editing #pnt-label,
+.pnt-editing #pnt-toolbar {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--pnt-duration-exit) var(--pnt-ease-exit),
+              visibility 0s linear var(--pnt-duration-exit);
+}
+.pnt-editing #pnt-toolbar * {
+  pointer-events: none !important;
+}
+/* Scoped through the container *and* .pnt-selected on purpose: the rule that
+   turns the ants up for a selection is `#pnt-overlay-container.pnt-selected
+   #pnt-ants path` at (2,1,1), so a plain `.pnt-editing #pnt-ants` at (1,1,0)
+   would lose and the ants would keep crawling behind the panel. Matching the
+   shape and adding the mode class makes this a win on specificity rather than
+   on source order, which would break the first time these sections were
+   reordered. */
+.pnt-editing #pnt-overlay-container.pnt-selected #pnt-ants {
+  opacity: 0;
+  transition: opacity var(--pnt-duration-exit) var(--pnt-ease-exit);
+}
+/* The box-model tints go with it. They are drawn on the element's own padding
+   and content areas, which is the interior the tether exists to keep clear. */
+.pnt-editing #pnt-overlay-container.pnt-selected #pnt-margin-box,
+.pnt-editing #pnt-overlay-container.pnt-selected #pnt-padding-box,
+.pnt-editing #pnt-overlay-container.pnt-selected #pnt-content-box {
+  display: none;
+}
+
+/* ===== Handoff =====
+   The surface that travels from the toolbar to the panel and back
+   (test/edit-transition-prototypes.html, 02). The same glass as both, at
+   the panel's corner, so nothing squares on the way. Forward on the arrival
+   curve at the standard duration; back on the exit curve at the exit
+   duration, fading as it lands. The identity line rides it on the three
+   layouts whose toolbar lives in the card. */
+#pnt-edit-morph {
+  all: initial;
+  box-sizing: border-box;
+  position: fixed;
+  z-index: var(--pnt-z-chrome);
+  pointer-events: none;
+  background: var(--pnt-glass);
+  -webkit-backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  border: 1px solid var(--pnt-border-2);
+  border-radius: var(--pnt-radius-lg);
+  box-shadow: var(--pnt-shadow-1);
+  overflow: hidden;
+  transition: top var(--pnt-duration) var(--pnt-ease),
+              left var(--pnt-duration) var(--pnt-ease),
+              width var(--pnt-duration) var(--pnt-ease),
+              height var(--pnt-duration) var(--pnt-ease),
+              opacity var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-morph.pnt-morph-out {
+  transition: top var(--pnt-duration-exit) var(--pnt-ease-exit),
+              left var(--pnt-duration-exit) var(--pnt-ease-exit),
+              width var(--pnt-duration-exit) var(--pnt-ease-exit),
+              height var(--pnt-duration-exit) var(--pnt-ease-exit),
+              opacity var(--pnt-duration-fast) var(--pnt-ease-exit) 60ms;
+}
+
+#pnt-edit-morph.pnt-morph-gone { opacity: 0; }
+
+#pnt-edit-morph .pnt-edit-morph-id {
+  all: initial;
+  position: absolute;
+  font: var(--pnt-weight-bold) var(--pnt-text-lg)/var(--pnt-leading-tight) var(--pnt-font-sans);
+  letter-spacing: -0.01em;
+  color: var(--pnt-text-1);
+  white-space: nowrap;
+  transition: top var(--pnt-duration) var(--pnt-ease),
+              left var(--pnt-duration) var(--pnt-ease);
+}
+
+#pnt-edit-morph .pnt-edit-id-tag { color: var(--pnt-accent); font-weight: var(--pnt-weight-bold); }
+#pnt-edit-morph .pnt-edit-id-id { color: var(--pnt-syntax-id); font-weight: var(--pnt-weight-medium); }
+#pnt-edit-morph .pnt-edit-id-class { color: var(--pnt-syntax-class); font-weight: var(--pnt-weight-medium); }
+
+/* The ticks arrive as the surface lands. An animation rather than a
+   transition, because renderTether snaps a new node into place with
+   transitions off. */
+#pnt-tether.pnt-tether-enter .pnt-tether-tick {
+  animation: pnt-tick-in var(--pnt-duration-fast) var(--pnt-ease) 100ms both;
+}
+
+@keyframes pnt-tick-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Measuring while editing hushes the panel exactly as it hushes the toolbar,
+   so the measurement has the page to itself. The panel's roots declare
+   `all: initial` too, so the descendant rule is as load-bearing here as it is
+   above. Releasing Option brings it back where it was. */
+.pnt-redlining #pnt-edit-panel {
+  visibility: hidden;
+  pointer-events: none;
+}
+.pnt-redlining #pnt-edit-panel * {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* ===== Element Label =====
+   Glass over the page: surface-0 at the material alpha behind the blur, a
+   hairline border, a short soft shadow. Sans for the words, mono for the
+   numbers. The three text steps are 13 / 12 / 11 by weight and tone; nothing
+   here is below AA against its own surface. */
+#pnt-label {
+  position: fixed;
+  background: var(--pnt-glass);
+  -webkit-backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  color: var(--pnt-text-1);
+  font: var(--pnt-weight-regular) var(--pnt-text-base)/var(--pnt-leading-base) var(--pnt-font-sans);
+  border-radius: var(--pnt-radius-lg);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: var(--pnt-z-chrome);
+  border: 1px solid var(--pnt-border-2);
+  box-shadow: var(--pnt-shadow-1);
+  /* box-sizing so the max-height the layout pass sets means the whole box */
+  box-sizing: border-box;
+  max-width: min(460px, calc(100vw - 8px));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: top var(--pnt-duration) var(--pnt-ease),
+              left var(--pnt-duration) var(--pnt-ease),
+              opacity var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+/* The head is the identity line: tag, id, classes and the size. */
+#pnt-label .pnt-label-head {
+  padding: 0 var(--pnt-md);
+  flex: none;
+  min-width: 0;
+}
+
+#pnt-label .pnt-label-line {
+  display: flex;
+  align-items: center;
+  gap: var(--pnt-sm);
+}
+
+/* Identity line — the title step, bold, tighter leading. */
+#pnt-label .pnt-line-identity {
+  font-size: var(--pnt-text-lg);
+  font-weight: var(--pnt-weight-bold);
+  line-height: var(--pnt-leading-tight);
+  letter-spacing: -0.01em;
+}
+
+#pnt-label .pnt-label-tag {
+  color: var(--pnt-accent);
+}
+
+#pnt-label .pnt-label-id {
+  color: var(--pnt-syntax-id);
+  font-weight: var(--pnt-weight-medium);
+}
+
+#pnt-label .pnt-label-class {
+  color: var(--pnt-syntax-class);
+  font-weight: var(--pnt-weight-medium);
+}
+
+/* Dimensions are a value, so they are mono; quiet, because the identity is
+   the thing being read and the size is the thing being checked. */
+#pnt-label .pnt-label-size {
+  color: var(--pnt-text-3);
+  margin-left: auto;
+  padding-left: var(--pnt-md);
+  font: var(--pnt-weight-regular) var(--pnt-text-sm)/var(--pnt-leading-tight) var(--pnt-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--pnt-tracking-num);
+}
+
+/* ===== Inspector (3.0) =====
+   The card's two levels — see CONTEXT.md and the Inspector section of
+   content.js. Both are a sheet: the name, then one row per fact, an icon and
+   a label before each. Hover stops there; selection adds a pane on the left
+   holding the picture (Map or Layers) and its switch, and is the one time the
+   card takes the pointer. Every colour here is a token: the page's own
+   colours arrive only through --insp-sw on a swatch, and through the inline
+   styles of the copy in the picture (and of the plate, ghost or halo that
+   keeps a clear layer readable). */
+/* A tab that was open when the extension updated still holds the previous
+   stylesheet beside this one, and its rules for names this sheet reuses would
+   show through wherever this sheet is silent: 8px above and below the pane,
+   the switch pushed to the right, a fixed height on the layer rows. So the
+   properties those rules set are stated here even where the value is the
+   default. */
+#pnt-label {
+  padding: 0;
+}
+#pnt-label.pnt-insp-live {
+  pointer-events: auto;
+  flex-direction: row;
+}
+/* The hover readout is a glance: narrow. */
+#pnt-label:not(.pnt-insp-live) {
+  max-width: min(320px, calc(100vw - 8px));
+}
+
+#pnt-label .pnt-insp-sheet {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--pnt-gap-section) 0;
+}
+
+/* The name is a code name: small, quiet, held to a width and ellipsized. */
+#pnt-label .pnt-line-identity {
+  font-size: var(--pnt-text-sm);
+  font-weight: var(--pnt-weight-medium);
+  letter-spacing: 0;
+}
+#pnt-label .pnt-insp-who {
+  display: flex;
+  min-width: 0;
+  max-width: 150px;
+  overflow: hidden;
+}
+#pnt-label .pnt-insp-who .pnt-label-tag {
+  flex: none;
+}
+#pnt-label .pnt-insp-who .pnt-label-id,
+#pnt-label .pnt-insp-who .pnt-label-class {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--pnt-text-3);
+  font-weight: var(--pnt-weight-regular);
+}
+
+/* The pane: the picture, and under it the Map / Layers switch. */
+#pnt-label .pnt-insp-pane {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pnt-gap-section);
+  box-sizing: border-box;
+  align-self: stretch;
+  min-width: 148px;
+  margin: 0;
+  padding: var(--pnt-lg);
+  background: var(--pnt-field);
+  border-right: 1px solid var(--pnt-border-1);
+}
+
+/* The table: what scrolls when the viewport is short. The name and the pane
+   stay put. */
+#pnt-label .pnt-insp-table {
+  flex: 0 1 auto;
+  min-height: 0;
+  margin-top: var(--pnt-xs);
+  padding: 0 var(--pnt-md);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--pnt-border-3) transparent;
+}
+#pnt-label .pnt-insp-dr {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 14px 46px minmax(0, 1fr);
+  column-gap: 7px;
+  align-items: start;
+  padding: var(--pnt-gap-base) 0;
+  color: var(--pnt-text-2);
+  font-size: var(--pnt-text-sm);
+  line-height: 20px;
+}
+#pnt-label .pnt-insp-dr + .pnt-insp-dr {
+  border-top: 1px solid var(--pnt-border-1);
+}
+#pnt-label .pnt-insp-ki {
+  display: flex;
+  align-items: center;
+  height: 20px;
+  color: var(--pnt-text-3);
+}
+#pnt-label .pnt-insp-ki svg {
+  width: 14px;
+  height: 14px;
+}
+#pnt-label .pnt-insp-dv {
+  min-width: 0;
+}
+#pnt-label .pnt-insp-k {
+  color: var(--pnt-text-3);
+}
+#pnt-label .pnt-insp-v,
+#pnt-label .pnt-insp-hex,
+#pnt-label .pnt-insp-more {
+  font-family: var(--pnt-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--pnt-tracking-num);
+}
+#pnt-label .pnt-insp-v,
+#pnt-label .pnt-insp-hex {
+  color: var(--pnt-text-1);
+}
+#pnt-label .pnt-insp-hex i {
+  font-style: normal;
+  color: var(--pnt-text-3);
+}
+#pnt-label .pnt-insp-cnt,
+#pnt-label .pnt-insp-more,
+#pnt-label .pnt-insp-none {
+  color: var(--pnt-text-3);
+}
+#pnt-label .pnt-insp-copied {
+  color: var(--pnt-accent);
+  font-family: var(--pnt-font-sans);
+}
+
+/* A typeface: its name written in itself, its numbers under it in mono. */
+#pnt-label .pnt-insp-face {
+  display: grid;
+}
+#pnt-label .pnt-insp-face + .pnt-insp-face {
+  margin-top: var(--pnt-gap-base);
+}
+#pnt-label .pnt-insp-fname {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--pnt-text-1);
+  font-size: var(--pnt-text-lg);
+  line-height: 20px;
+}
+#pnt-label .pnt-insp-face .pnt-insp-v {
+  color: var(--pnt-text-2);
+  line-height: 16px;
+}
+
+/* A swatch: the page's colour over the checker, so alpha reads as alpha. */
+#pnt-label .pnt-insp-sws {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--pnt-xs);
+}
+#pnt-label .pnt-insp-sw {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--pnt-radius-xs);
+  box-shadow: inset 0 0 0 1px var(--pnt-swatch-border);
+  background: linear-gradient(var(--insp-sw), var(--insp-sw));
+}
+#pnt-label .pnt-insp-sw.pnt-insp-sw-alpha {
+  background:
+    linear-gradient(var(--insp-sw), var(--insp-sw)),
+    repeating-conic-gradient(var(--pnt-checker) 0 25%, transparent 0 50%) 0 0 / 6px 6px;
+}
+
+/* Hover: every colour, eight to a row. */
+#pnt-label .pnt-insp-hsws {
+  display: flex;
+  max-width: 124px;
+  padding: var(--pnt-xs) 0;
+}
+
+/* Map / Layers: two icons under the picture. */
+#pnt-label .pnt-insp-mode {
+  margin: 0;
+  display: inline-flex;
+  gap: var(--pnt-gap-tight);
+  padding: var(--pnt-gap-tight);
+  border-radius: var(--pnt-radius-sm);
+  background: var(--pnt-surface-2);
+}
+#pnt-label .pnt-insp-mode button,
+#pnt-label .pnt-insp-chip,
+#pnt-label .pnt-insp-cell,
+#pnt-label .pnt-insp-swb {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+#pnt-label .pnt-insp-mode button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 20px;
+  border-radius: 6px;
+  color: var(--pnt-text-3);
+  transition: background var(--pnt-duration-fast) var(--pnt-ease), color var(--pnt-duration-fast) var(--pnt-ease);
+}
+#pnt-label .pnt-insp-mode button:hover,
+#pnt-label .pnt-insp-mode button[aria-pressed="true"] {
+  color: var(--pnt-text-1);
+}
+#pnt-label .pnt-insp-mode button[aria-pressed="true"] {
+  background: var(--pnt-surface-0);
+  box-shadow: var(--pnt-shadow-1);
+}
+#pnt-label .pnt-insp-mode svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 1.75;
+}
+#pnt-label .pnt-insp-mode button:focus-visible,
+#pnt-label .pnt-insp-chip:focus-visible,
+#pnt-label .pnt-insp-cell:focus-visible,
+#pnt-label .pnt-insp-swb:focus-visible {
+  outline: 2px solid var(--pnt-focus);
+  outline-offset: 1px;
+}
+
+#pnt-label .pnt-insp-pic {
+  animation: pnt-insp-in var(--pnt-duration) var(--pnt-ease);
+}
+@keyframes pnt-insp-in {
+  from { opacity: 0; transform: translateY(2px); }
+}
+
+/* The copy of the element. Its own styles are inline and !important; this
+   box only sizes and frames it. */
+#pnt-label .pnt-insp-cbox {
+  position: relative;
+  flex: none;
+  overflow: visible;
+  white-space: normal;
+}
+#pnt-label .pnt-insp-cbox.pnt-insp-bare::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 1px dashed var(--pnt-border-3);
+  border-radius: 2px;
+  pointer-events: none;
+}
+#pnt-label .pnt-insp-mhl {
+  position: absolute;
+  z-index: 2;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1.5px var(--pnt-accent);
+  background: var(--pnt-accent-soft);
+  pointer-events: none;
+}
+#pnt-label .pnt-insp-frame {
+  background: repeating-linear-gradient(45deg, var(--pnt-surface-2) 0 6px, var(--pnt-surface-1) 6px 12px);
+}
+
+#pnt-label .pnt-insp-fig {
+  flex: none;
+  align-items: normal;
+  display: grid;
+  gap: var(--pnt-sm);
+  justify-items: center;
+}
+#pnt-label .pnt-insp-dim {
+  position: relative;
+  min-width: max-content;
+  height: 14px;
+  color: var(--pnt-text-3);
+  font: var(--pnt-weight-regular) var(--pnt-text-micro)/var(--pnt-leading-tight) var(--pnt-font-mono);
+  line-height: 14px;
+  text-align: center;
+}
+#pnt-label .pnt-insp-dim::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 7px;
+  border-top: 1px solid var(--pnt-border-3);
+}
+#pnt-label .pnt-insp-dim::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 3px;
+  height: 8px;
+  border-left: 1px solid var(--pnt-border-3);
+  border-right: 1px solid var(--pnt-border-3);
+}
+#pnt-label .pnt-insp-dim span {
+  position: relative;
+  z-index: 1;
+  padding: 0 var(--pnt-xs);
+  background: var(--pnt-field);
+}
+
+/* A few colours: a list, each with its value. */
+#pnt-label .pnt-insp-chips {
+  display: grid;
+  gap: var(--pnt-gap-tight);
+  align-content: start;
+  margin: calc(-1 * var(--pnt-gap-tight)) 0;
+}
+#pnt-label .pnt-insp-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 24px;
+  padding: 0 var(--pnt-sm);
+  margin: 0 calc(-1 * var(--pnt-sm));
+  border-radius: var(--pnt-radius-sm);
+  font: var(--pnt-weight-regular) var(--pnt-text-sm)/1 var(--pnt-font-mono);
+  white-space: nowrap;
+}
+#pnt-label .pnt-insp-chip .pnt-insp-sw,
+#pnt-label .pnt-insp-swb .pnt-insp-sw {
+  width: 14px;
+  height: 14px;
+}
+#pnt-label .pnt-insp-chip:hover,
+#pnt-label .pnt-insp-chip.pnt-on,
+#pnt-label .pnt-insp-lyl.pnt-on {
+  background: var(--pnt-accent-soft);
+}
+
+/* The readout line over the grid, and over the layer rows. */
+#pnt-label .pnt-insp-sect {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--pnt-lg);
+  margin-bottom: var(--pnt-xs);
+  color: var(--pnt-text-3);
+  font-weight: var(--pnt-weight-medium);
+  white-space: nowrap;
+}
+#pnt-label .pnt-insp-rd {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pnt-sm);
+}
+/* Many colours: a grid, six across, as many rows as it takes. */
+#pnt-label .pnt-insp-grid-wrap {
+  padding: 0;
+  border: 0;
+}
+#pnt-label .pnt-insp-grid {
+  display: grid;
+  gap: var(--pnt-xs);
+  padding: 2px 0;
+}
+#pnt-label .pnt-insp-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  transition: opacity var(--pnt-duration-fast) var(--pnt-ease);
+}
+#pnt-label .pnt-insp-cell .pnt-insp-sw {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+}
+#pnt-label .pnt-insp-cell:hover,
+#pnt-label .pnt-insp-cell.pnt-on {
+  box-shadow: 0 0 0 1.5px var(--pnt-accent);
+}
+#pnt-label .pnt-insp-cell.pnt-dim {
+  opacity: 0.25;
+}
+
+/* Layers: tilted planes in the pane, one row per plane in the sheet. */
+#pnt-label .pnt-insp-stack {
+  position: relative;
+  flex: none;
+}
+#pnt-label .pnt-insp-plane {
+  position: absolute;
+  transform: rotateX(56deg) rotateZ(-45deg) translateZ(var(--insp-lift, 0px));
+  transform-style: preserve-3d;
+  transition: transform var(--pnt-duration) var(--pnt-ease), opacity var(--pnt-duration) var(--pnt-ease);
+}
+#pnt-label .pnt-insp-glass {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--pnt-surface-0) 30%, transparent);
+  box-shadow: inset 0 0 0 1px var(--pnt-border-3);
+}
+/* Planes move when lifted, so they never take the pointer; the bands —
+   still, one per layer row — do (see layersPicture). */
+#pnt-label .pnt-insp-plane {
+  pointer-events: none;
+}
+#pnt-label .pnt-insp-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  cursor: pointer;
+}
+#pnt-label .pnt-insp-stack.pnt-lit .pnt-insp-plane:not(.pnt-on) {
+  opacity: 0.25;
+}
+#pnt-label .pnt-insp-plane.pnt-on {
+  --insp-lift: 14px;
+}
+#pnt-label .pnt-insp-plane.pnt-on .pnt-insp-glass {
+  box-shadow: inset 0 0 0 1.5px var(--pnt-accent);
+}
+/* The three aids for paint a clear plane would lose (inspectorLayerAid).
+   The plate's tone and the halo are inline, computed from the paint itself;
+   the ghost is the element's own fill, faint, under the plane's paint. */
+#pnt-label .pnt-insp-plane.pnt-insp-plated .pnt-insp-glass {
+  box-shadow: inset 0 0 0 1px var(--pnt-border-2);
+}
+#pnt-label .pnt-insp-plane.pnt-insp-plated.pnt-on .pnt-insp-glass {
+  box-shadow: inset 0 0 0 1.5px var(--pnt-accent);
+}
+#pnt-label .pnt-insp-ghost {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0.55;
+}
+#pnt-label .pnt-insp-ghost .pnt-insp-cbox {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+#pnt-label .pnt-insp-lylist {
+  display: grid;
+  gap: var(--pnt-gap-tight);
+}
+#pnt-label .pnt-insp-lyl {
+  display: flex;
+  flex: initial;
+  height: auto;
+  align-items: flex-start;
+  gap: var(--pnt-gap-section);
+  padding: var(--pnt-xs) var(--pnt-sm);
+  margin: 0 calc(-1 * var(--pnt-sm));
+  border-radius: var(--pnt-radius-sm);
+  color: var(--pnt-text-3);
+  line-height: 16px;
+  white-space: nowrap;
+}
+#pnt-label .pnt-insp-rl {
+  min-width: 40px;
+}
+/* Six swatches to a row, as many rows as the layer has colours for. */
+#pnt-label .pnt-insp-lyl .pnt-insp-sws {
+  flex: none;
+  flex-wrap: wrap;
+  gap: var(--pnt-xs);
+  width: max-content;
+  max-width: 104px;
+  padding-top: 1px;
+}
+#pnt-label .pnt-insp-swb {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: var(--pnt-radius-xs);
+}
+#pnt-label .pnt-insp-swb:hover {
+  box-shadow: 0 0 0 1.5px var(--pnt-accent);
+}
+#pnt-label .pnt-insp-swb .pnt-insp-hex {
+  line-height: 14px;
+}
+
+/* A hovered colour or layer, found on the page. */
+#pnt-overlay-container .pnt-insp-hl {
+  position: fixed;
+  border-radius: var(--pnt-radius-xs);
+  background: var(--pnt-accent-soft);
+  box-shadow: 0 0 0 1.5px var(--pnt-accent);
+  pointer-events: none;
+  animation: pnt-insp-hl-in var(--pnt-duration-fast) var(--pnt-ease);
+}
+@keyframes pnt-insp-hl-in {
+  from { opacity: 0; }
+}
+
+/* ===== Toolbar =====
+   The pill: four icons and the keyboard hints on the glass, its own fixed
+   root, placed a pair-gap under the inspector (computeChromeLayout's beside
+   rule). Since 3.0 there is one arrangement; the four selection layouts were
+   retired with the preference that chose between them.
+
+   `all: initial` on this and its descendants resets every regular property, so
+   font-family and box-sizing have to be re-declared below. Custom properties are
+   the one thing `all` does not reset (CSS Cascade 4 §3.2), which is why the
+   --pnt-* tokens still reach in here from :root. */
+#pnt-toolbar {
+  all: initial;
+  position: fixed;
+  z-index: var(--pnt-z-chrome);
+  display: flex;
+  align-items: stretch;
+  font-family: var(--pnt-font-sans);
+  box-sizing: border-box;
+  transition: top var(--pnt-duration) var(--pnt-ease),
+              left var(--pnt-duration) var(--pnt-ease),
+              opacity var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-toolbar .pnt-bar {
+  all: initial;
+  display: flex;
+  align-items: center;
+  gap: var(--pnt-gap-tight);
+  font-family: var(--pnt-font-sans);
+  box-sizing: border-box;
+  background: var(--pnt-glass);
+  -webkit-backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  border: 1px solid var(--pnt-border-2);
+  border-radius: 999px;
+  box-shadow: var(--pnt-shadow-1);
+  padding: 3px;
+}
+
+#pnt-toolbar button {
+  all: initial;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: transparent;
+  color: var(--pnt-text-1);
+  border: 0;
+  border-radius: 999px;
+  padding: 5px 7px;
+  font: var(--pnt-weight-medium) var(--pnt-text-base)/var(--pnt-leading-tight) var(--pnt-font-sans);
+  cursor: pointer;
+  white-space: nowrap;
+  box-sizing: border-box;
+  transition: background var(--pnt-duration) var(--pnt-ease),
+              color var(--pnt-duration) var(--pnt-ease);
+}
+
+#pnt-toolbar button:hover {
+  background: var(--pnt-surface-2);
+}
+
+#pnt-toolbar button:active {
+  background: color-mix(in srgb, var(--pnt-surface-2) 60%, var(--pnt-border-3));
+}
+
+/* Edit and Select Parent in the accent: one opens a mode, the other moves the
+   selection — neither copies anything. Pressed, Select Parent floods to the
+   accent with its ink: the one moment a button here is opaque, and it lasts
+   as long as the mouse button is down. */
+#pnt-toolbar button.pnt-accent-btn {
+  color: var(--pnt-accent);
+}
+
+#pnt-toolbar button.pnt-accent-btn:hover {
+  background: var(--pnt-accent-soft);
+}
+
+#pnt-toolbar button[data-action="parent"]:active {
+  background: var(--pnt-accent);
+  color: var(--pnt-on-accent);
+}
+
+#pnt-toolbar button.pnt-button-disabled {
+  opacity: var(--pnt-opacity-disabled);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* `all: initial` takes the focus ring with it; give it back, in the accent. */
+#pnt-toolbar button:focus-visible,
+#pnt-settings-btn:focus-visible {
+  outline: 2px solid var(--pnt-focus);
+  outline-offset: 1px;
+}
+
+#pnt-toolbar button svg,
+#pnt-settings-btn svg {
+  width: var(--pnt-icon);
+  height: var(--pnt-icon);
+  flex-shrink: 0;
+  stroke-width: 1.75;
+}
+
+/* Icons only; the tooltip names them. The label span stays in the markup for
+   the tooltip's "already says it" test and for screen readers via aria-label. */
+#pnt-toolbar button span {
+  display: none;
+}
+
+/* The keyboard ladder, made visible: what is actually bound and nothing else.
+   Chips at the tertiary tone, closing the pill after a hairline. */
+.pnt-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pnt-xs);
+  color: var(--pnt-text-3);
+  font: var(--pnt-weight-regular) var(--pnt-text-sm)/1 var(--pnt-font-sans);
+  white-space: nowrap;
+}
+
+.pnt-kbd {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 var(--pnt-xs);
+  border-radius: var(--pnt-radius-xs);
+  font: var(--pnt-weight-medium) var(--pnt-text-micro)/1 var(--pnt-font-mono);
+  color: var(--pnt-text-3);
+  background: var(--pnt-surface-2);
+  border: 1px solid var(--pnt-border-1);
+  box-sizing: border-box;
+}
+
+#pnt-toolbar .pnt-hints {
+  margin-left: var(--pnt-xs);
+  padding: 0 var(--pnt-sm) 0 var(--pnt-sm);
+  border-left: 1px solid var(--pnt-border-1);
+  align-self: stretch;
+}
+
+/* ===== Tooltip =====
+   The name of an icon-only action: its own root beside the label, positioned
+   from the button it names (showTip), so showing it can never move the
+   chrome. Glass, one line. Visibility rather than display so the fade out
+   completes and the box is measurable before it shows. */
+#pnt-tip {
+  position: fixed;
+  z-index: var(--pnt-z-chrome);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  background: var(--pnt-glass);
+  -webkit-backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  border: 1px solid var(--pnt-border-2);
+  border-radius: var(--pnt-radius-md);
+  box-shadow: var(--pnt-shadow-1);
+  padding: 3px 7px;
+  color: var(--pnt-text-1);
+  font: var(--pnt-weight-medium) var(--pnt-text-sm)/var(--pnt-leading-tight) var(--pnt-font-sans);
+  white-space: nowrap;
+  box-sizing: border-box;
+  transition: opacity var(--pnt-duration-fast) var(--pnt-ease),
+              visibility var(--pnt-duration-fast);
+}
+
+#pnt-tip.pnt-tip-on {
+  opacity: 1;
+  visibility: visible;
+}
+
+
+/* Placement that tracks the viewport has to be instantaneous — gliding to each
+   new scroll position smears the chrome across the page. !important because
+   #pnt-label and #pnt-toolbar both set transition at ID specificity. */
+.pnt-no-transition {
+  transition: none !important;
+}
+
+/* The Screenshot button while it works: the camera's own lens, in the accent,
+   snapping shut and opening — a shutter. Nothing is swapped in, so the icon
+   keeps its meaning and the button its shape. Chosen in the screenshot loading
+   round (test/screenshot-loading-round.html) over the 1.x ring, a crawl, a
+   scan, a breathing icon and viewfinder corners. content.js adds the class
+   only once a capture has outlasted LOADING_DELAY, so a fast one never shows
+   it. Quieted at the top of this file through .pnt-bar, which outranks this. */
+#pnt-toolbar button.pnt-loading svg circle {
+  stroke: var(--pnt-accent);
+  fill: var(--pnt-accent);
+  transform-origin: 12px 13px;
+  transform-box: view-box;
+  animation: pnt-shutter 1.1s var(--pnt-ease) infinite;
+}
+
+@keyframes pnt-shutter {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(0.12); }
+  55%  { transform: scale(0.12); }
+  100% { transform: scale(1); }
+}
+
+/* The click itself, acknowledged before any work starts: a wash of the accent
+   fading over the slow duration. One-shot; content.js drops the class after. */
+#pnt-toolbar button.pnt-flashing {
+  animation: pnt-flash var(--pnt-duration-slow) var(--pnt-ease-exit) forwards;
+}
+
+@keyframes pnt-flash {
+  from { background: color-mix(in srgb, var(--pnt-accent) 28%, transparent); }
+  to   { background: transparent; }
+}
+
+/* The check draws in rather than popping. It is the only polyline a button
+   carries in its success state, so nothing else is caught by this. */
+#pnt-toolbar button.pnt-done svg polyline {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: pnt-draw var(--pnt-duration) var(--pnt-ease) forwards;
+}
+
+@keyframes pnt-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* An undo can land on an element other than the one being edited. It gets a
+   single pulse where it stands, so the change is never invisible — and it
+   lives in the overlay container, which is already pointer-events:none, so it
+   cannot get in the way of the page underneath. */
+#pnt-edit-flash {
+  position: fixed;
+  border: var(--pnt-ring) solid var(--pnt-accent);
+  border-radius: var(--pnt-radius-md);
+  opacity: 0;
+  pointer-events: none;
+}
+
+#pnt-edit-flash.pnt-edit-flashing {
+  animation: pnt-edit-flash var(--pnt-duration-slow) var(--pnt-ease) 2 alternate;
+}
+
+@keyframes pnt-edit-flash {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ===== Edit Panel =====
+   The one piece of chrome the user positions. It takes the toolbar's solved
+   spot on entry (see placeEditPanel) and then stays wherever it is dragged,
+   which is why it has no positional transition at all: every other box in this
+   file is placed by the solver and glides between solutions, but a panel that
+   eased toward the pointer would smear behind the drag.
+
+   Round four (test/edit-panel-prototypes.html, 04): every group is a titled
+   grid of labelled cells, the label above the value; every group title is a
+   caret row that opens and closes, and a closed group says its values on one
+   line; the label is the edited mark and the reset; one field for every
+   value with the stepper's arrows at its ends; the two-control token form,
+   a capsule under the field naming the token the value sits on. */
+#pnt-edit-panel {
+  all: initial;
+  position: fixed;
+  z-index: var(--pnt-z-chrome);
+  box-sizing: border-box;
+  font-family: var(--pnt-font);
+  color: var(--pnt-text-1);
+  background: var(--pnt-glass);
+  -webkit-backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  border: 1px solid var(--pnt-border-2);
+  border-radius: var(--pnt-radius-lg);
+  box-shadow: var(--pnt-shadow-1);
+  width: 280px;
+  /* Taller than the viewport is a real case on a short window; the panel
+     scrolls inside itself rather than growing past the screen, which is what
+     lets the placement solver always find room for it. */
+  max-height: calc(100vh - 2 * var(--pnt-xs));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* The panel is dragged by its header, and a drag that selects text as it
+     goes feels broken. */
+  user-select: none;
+  /* The handoff: the contents fade in a beat after the surface sets off. No
+     positional transition, ever — see above. */
+  transition: opacity var(--pnt-duration-fast) var(--pnt-ease) 100ms;
+}
+
+#pnt-edit-panel.pnt-edit-arriving {
+  opacity: 0;
+  transition: none;
+}
+
+/* ----- Header ----- */
+#pnt-edit-panel .pnt-edit-head {
+  all: initial;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--pnt-xs);
+  padding: var(--pnt-sm) var(--pnt-gap-section) var(--pnt-sm) var(--pnt-sm);
+  border-bottom: 1px solid var(--pnt-border-1);
+  font-family: var(--pnt-font);
+  cursor: grab;
+  /* Without this the browser claims the gesture for scrolling and the panel
+     stutters or stops following the pointer on trackpads and touch. */
+  touch-action: none;
+  /* Above the body, so the scroll shadow below lands on the rows. */
+  position: relative;
+  z-index: 1;
+  transition: box-shadow var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-head.pnt-edit-dragging {
+  cursor: grabbing;
+}
+
+/* The "there is more" cue: while rows have scrolled under the header it
+   casts a short shadow on them, and the footer does the same while rows are
+   still below it. Both go at the ends. rail.js sets the two classes. */
+#pnt-edit-panel.pnt-more-above .pnt-edit-head {
+  box-shadow: 0 6px 12px -6px var(--pnt-shade);
+}
+
+#pnt-edit-panel.pnt-more-below .pnt-edit-foot {
+  box-shadow: 0 -6px 12px -6px var(--pnt-shade);
+}
+
+/* The header is the drag handle, and says so when the pointer arrives. */
+#pnt-edit-panel .pnt-edit-grip {
+  all: initial;
+  display: block;
+  flex: none;
+  width: 8px;
+  height: 14px;
+  color: var(--pnt-text-4);
+  opacity: 0;
+  transition: opacity var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-head:hover .pnt-edit-grip { opacity: 0.8; }
+
+#pnt-edit-panel .pnt-edit-grip svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+  stroke: none;
+}
+
+#pnt-edit-panel .pnt-edit-back,
+#pnt-edit-panel .pnt-edit-act {
+  all: initial;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--pnt-radius-sm);
+  background: transparent;
+  color: var(--pnt-text-2);
+  cursor: pointer;
+  position: relative;
+  transition: color var(--pnt-duration-fast) var(--pnt-ease),
+              background var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-back:hover,
+#pnt-edit-panel .pnt-edit-act:hover {
+  color: var(--pnt-text-1);
+  background: var(--pnt-surface-2);
+}
+
+#pnt-edit-panel .pnt-edit-back:focus-visible,
+#pnt-edit-panel .pnt-edit-act:focus-visible {
+  outline: 2px solid var(--pnt-focus);
+  outline-offset: 1px;
+}
+
+#pnt-edit-panel .pnt-edit-back svg,
+#pnt-edit-panel .pnt-edit-act svg {
+  width: var(--pnt-icon);
+  height: var(--pnt-icon);
+}
+
+/* Copy is the one primary action, so it wears the accent. */
+#pnt-edit-panel .pnt-edit-act.pnt-edit-primary { color: var(--pnt-accent); }
+
+#pnt-edit-panel .pnt-edit-act.pnt-edit-primary:hover {
+  color: var(--pnt-accent-hover);
+  background: var(--pnt-accent-soft);
+}
+
+#pnt-edit-panel .pnt-edit-act.pnt-edit-on { color: var(--pnt-accent); }
+
+/* Copy carries a count of what it would write, so the panel always says how
+   much is pending without opening anything. */
+#pnt-edit-panel .pnt-edit-count {
+  all: initial;
+  box-sizing: border-box;
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 var(--pnt-xs);
+  border-radius: 8px;
+  background: var(--pnt-accent);
+  color: var(--pnt-on-accent);
+  font: var(--pnt-weight-bold) var(--pnt-text-micro)/1 var(--pnt-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+#pnt-edit-panel .pnt-edit-count:empty { display: none; }
+
+/* The same tag / #id / .class colouring the info label uses, so the panel
+   reads as the same tool looking at the same element. */
+#pnt-edit-panel .pnt-edit-id {
+  all: initial;
+  font: var(--pnt-weight-bold) var(--pnt-text-lg)/var(--pnt-leading-tight) var(--pnt-font-sans);
+  letter-spacing: -0.01em;
+  color: var(--pnt-text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+}
+
+#pnt-edit-panel .pnt-edit-id-tag { color: var(--pnt-accent); font-weight: var(--pnt-weight-bold); }
+#pnt-edit-panel .pnt-edit-id-id { color: var(--pnt-syntax-id); font-weight: var(--pnt-weight-medium); }
+#pnt-edit-panel .pnt-edit-id-class { color: var(--pnt-syntax-class); font-weight: var(--pnt-weight-medium); }
+
+/* Something about this page kept the token layer from reading it — usually a
+   cross-origin stylesheet. Deliberately not a warning: nothing is broken and
+   the user has done nothing wrong, so this is a quiet dashed ring, and the
+   tooltip says why. */
+#pnt-edit-panel .pnt-edit-degraded {
+  all: initial;
+  box-sizing: border-box;
+  display: none;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin: 0 var(--pnt-xs);
+  border: 1px dashed var(--pnt-text-3);
+  border-radius: 50%;
+  cursor: help;
+}
+
+#pnt-edit-panel .pnt-edit-degraded.pnt-edit-on { display: block; }
+
+/* ----- Body ----- */
+#pnt-edit-panel .pnt-edit-body {
+  all: initial;
+  box-sizing: border-box;
+  display: block;
+  font-family: var(--pnt-font);
+  color: var(--pnt-text-1);
+  padding: var(--pnt-md) var(--pnt-md) var(--pnt-md);
+  overflow-y: auto;
+  /* Declaring only overflow-y makes overflow-x compute to auto as well, so
+     anything a pixel too wide grew a horizontal scrollbar under the rows.
+     Nothing in the panel may scroll sideways. */
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+/* ----- Groups -----
+   A title that leads, then cells. The title is a caret row: it opens and
+   closes the group, and a closed group says its values on one line where the
+   body was. */
+#pnt-edit-panel .pnt-edit-group {
+  all: initial;
+  display: block;
+  font-family: var(--pnt-font);
+}
+
+#pnt-edit-panel .pnt-edit-group + .pnt-edit-group {
+  margin-top: var(--pnt-gap-section);
+  padding-top: var(--pnt-sm);
+  border-top: 1px solid var(--pnt-border-1);
+}
+
+#pnt-edit-panel .pnt-edit-title {
+  all: initial;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--pnt-sm);
+  width: calc(100% + 2 * var(--pnt-xs));
+  height: 28px;
+  margin: 0 calc(-1 * var(--pnt-xs)) var(--pnt-gap-section);
+  padding: 0 var(--pnt-xs);
+  border-radius: var(--pnt-radius-sm);
+  font: var(--pnt-weight-medium) var(--pnt-text-lg)/1.3 var(--pnt-font-sans);
+  letter-spacing: -0.005em;
+  color: var(--pnt-text-1);
+  cursor: pointer;
+  transition: background var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-title:hover {
+  background: color-mix(in srgb, var(--pnt-surface-2) 70%, transparent);
+}
+
+#pnt-edit-panel .pnt-edit-title:focus-visible {
+  outline: 2px solid var(--pnt-focus);
+  outline-offset: -2px;
+}
+
+#pnt-edit-panel .pnt-edit-closed .pnt-edit-title { margin-bottom: 0; }
+
+#pnt-edit-panel .pnt-edit-caret {
+  all: initial;
+  display: block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--pnt-text-3);
+  rotate: 90deg;
+  transition: rotate var(--pnt-duration) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-closed .pnt-edit-caret { rotate: 0deg; }
+
+#pnt-edit-panel .pnt-edit-caret svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* What a closed group holds, said in its title. */
+#pnt-edit-panel .pnt-edit-sum {
+  all: initial;
+  display: none;
+  margin-left: auto;
+  max-width: 150px;
+  font: var(--pnt-text-sm)/1 var(--pnt-font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--pnt-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#pnt-edit-panel .pnt-edit-closed .pnt-edit-sum { display: block; }
+
+/* The body glides shut and open where the browser can interpolate to auto
+   (Chrome 129+); older Chrome snaps, which is the same accepted fallback the
+   Advanced section's <details> had. */
+#pnt-edit-panel .pnt-edit-groupbody {
+  all: initial;
+  box-sizing: border-box;
+  display: block;
+  font-family: var(--pnt-font);
+  interpolate-size: allow-keywords;
+  height: auto;
+  overflow: clip;
+  /* The cells' hover wash reaches past the grid by their negative margins,
+     and this box clips. Padding it by the same amounts, and pulling it back
+     out by the same margins, puts the wash inside the clip. */
+  padding: 3px var(--pnt-gap-tight) var(--pnt-xs);
+  margin: -3px calc(-1 * var(--pnt-gap-tight)) calc(-1 * var(--pnt-xs));
+  transition: height var(--pnt-duration) var(--pnt-ease),
+              opacity var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-closed .pnt-edit-groupbody {
+  height: 0;
+  opacity: 0;
+}
+
+/* Which canvas got probed, or why the rows are inert — quiet, because none
+   of it is a fault. */
+#pnt-edit-panel .pnt-edit-note {
+  all: initial;
+  display: block;
+  margin: calc(-1 * var(--pnt-gap-tight)) 0 var(--pnt-gap-section);
+  font: var(--pnt-text-sm)/1.45 var(--pnt-font);
+  color: var(--pnt-text-3);
+}
+
+#pnt-edit-panel .pnt-edit-note .pnt-edit-id-tag { color: var(--pnt-accent); }
+#pnt-edit-panel .pnt-edit-note .pnt-edit-id-id { color: var(--pnt-syntax-id); }
+#pnt-edit-panel .pnt-edit-note .pnt-edit-id-class { color: var(--pnt-syntax-class); }
+
+/* The disclosure row: the one vocabulary for "there is more here". A group
+   the element does not have yet holds one, and it adds the property. */
+#pnt-edit-panel .pnt-edit-disc {
+  all: initial;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--pnt-sm);
+  width: calc(100% + 2 * var(--pnt-xs));
+  height: 26px;
+  margin: 0 calc(-1 * var(--pnt-xs));
+  padding: 0 var(--pnt-xs);
+  border-radius: var(--pnt-radius-sm);
+  font: var(--pnt-text-base)/1 var(--pnt-font-sans);
+  color: var(--pnt-text-2);
+  cursor: pointer;
+  transition: background var(--pnt-duration-fast) var(--pnt-ease),
+              color var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-disc:hover {
+  background: color-mix(in srgb, var(--pnt-surface-2) 70%, transparent);
+  color: var(--pnt-text-1);
+}
+
+#pnt-edit-panel .pnt-edit-disc:focus-visible {
+  outline: 2px solid var(--pnt-focus);
+  outline-offset: -2px;
+}
+
+#pnt-edit-panel .pnt-edit-disc .pnt-edit-caret { rotate: 0deg; }
+
+/* ----- Cells -----
+   Label above value. Two across for most groups, three for Typography, four
+   for the sides of a split control. */
+#pnt-edit-panel .pnt-edit-cells {
+  all: initial;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--pnt-gap-section) var(--pnt-sm);
+  font-family: var(--pnt-font);
+}
+
+#pnt-edit-panel .pnt-edit-c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+#pnt-edit-panel .pnt-edit-c4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--pnt-sm) var(--pnt-xs);
+  grid-column: 1 / -1;
+}
+
+#pnt-edit-panel .pnt-edit-cell {
+  all: initial;
+  box-sizing: border-box;
+  position: relative;
+  display: block;
+  min-width: 0;
+  /* Two pixels sideways, not four: the narrowest grid gap is four, and a
+     wash that reached further would overlap its neighbour's. */
+  padding: 3px var(--pnt-gap-tight) var(--pnt-xs);
+  margin: -3px calc(-1 * var(--pnt-gap-tight)) calc(-1 * var(--pnt-xs));
+  border-radius: var(--pnt-radius-sm);
+  font-family: var(--pnt-font);
+  transition: background var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-cell:hover {
+  background: color-mix(in srgb, var(--pnt-surface-2) 70%, transparent);
+}
+
+#pnt-edit-panel .pnt-edit-span2 { grid-column: span 2; }
+#pnt-edit-panel .pnt-edit-span3 { grid-column: span 3; }
+
+/* The vec heading of a multi-component uniform: a label with no field,
+   standing over its components the way a split control's parent does. */
+#pnt-edit-panel .pnt-edit-headcell {
+  grid-column: 1 / -1;
+  margin-bottom: calc(-1 * var(--pnt-gap-base));
+}
+
+/* ----- Label -----
+   The property's name, the edited mark, and the reset. It turns accent when
+   the property carries an edit and takes the edit back on click; the reset
+   glyph appears beside it on hover. */
+#pnt-edit-panel .pnt-edit-label {
+  all: initial;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--pnt-xs);
+  min-width: 0;
+  margin-bottom: var(--pnt-xs);
+  font: var(--pnt-text-base)/1.3 var(--pnt-font-sans);
+  color: var(--pnt-text-2);
+  white-space: nowrap;
+  transition: color var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-name {
+  all: initial;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: inherit;
+  color: inherit;
+}
+
+#pnt-edit-panel .pnt-edit-side .pnt-edit-label {
+  font-size: var(--pnt-text-sm);
+  color: var(--pnt-text-3);
+}
+
+#pnt-edit-panel .pnt-edit-undo {
+  all: initial;
+  display: block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--pnt-accent);
+  opacity: 0;
+  transition: opacity var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-undo svg { display: block; width: 100%; height: 100%; }
+
+#pnt-edit-panel .pnt-edit-label.pnt-edit-on {
+  color: var(--pnt-accent);
+  font-weight: var(--pnt-weight-medium);
+  cursor: pointer;
+}
+
+#pnt-edit-panel .pnt-edit-label.pnt-edit-on:hover .pnt-edit-undo { opacity: 1; }
+
+/* A value the page rewrites every frame, said in the label. */
+#pnt-edit-panel .pnt-edit-driven {
+  all: initial;
+  flex: none;
+  font: var(--pnt-text-micro)/1 var(--pnt-font-sans);
+  color: var(--pnt-text-3);
+  border: 1px solid var(--pnt-border-2);
+  border-radius: 999px;
+  padding: 2px var(--pnt-sm);
+  white-space: nowrap;
+}
+
+#pnt-edit-panel .pnt-edit-cell[data-driven]:not(.pnt-edit-dirty) .pnt-edit-input {
+  color: var(--pnt-text-2);
+}
+
+/* The link toggle turns one value into four and back. It rides at the
+   label's right end, so the field below stays one edge. */
+#pnt-edit-panel .pnt-edit-link {
+  all: initial;
+  box-sizing: border-box;
+  flex: none;
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--pnt-radius-xs);
+  color: var(--pnt-text-3);
+  cursor: pointer;
+  transition: color var(--pnt-duration-fast) var(--pnt-ease),
+              background var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-link svg { width: 12px; height: 12px; }
+
+#pnt-edit-panel .pnt-edit-link:hover {
+  color: var(--pnt-accent);
+  background: var(--pnt-surface-2);
+}
+
+#pnt-edit-panel .pnt-edit-link[aria-pressed="true"] { color: var(--pnt-accent); }
+
+#pnt-edit-panel .pnt-edit-link:focus-visible {
+  outline: 2px solid var(--pnt-focus);
+  outline-offset: 1px;
+}
+
+/* ----- The field -----
+   One chip for every value. It is the drag surface as well as the input,
+   which is why the whole thing carries the resize cursor. The chevrons at
+   its ends are faint at rest — the hint that it scrubs — and a control on
+   hover: one rung along the ladder where the value sits on one, one step of
+   the number where it does not. */
+#pnt-edit-panel .pnt-edit-fieldwrap {
+  all: initial;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--pnt-xs);
+  width: 100%;
+  min-width: 0;
+  font-family: var(--pnt-font);
+}
+
+#pnt-edit-panel .pnt-edit-autowrap {
+  all: initial;
+  display: flex;
+  align-items: center;
+  gap: var(--pnt-xs);
+  width: 100%;
+  min-width: 0;
+}
+
+#pnt-edit-panel .pnt-edit-autowrap .pnt-edit-num { flex: 1; min-width: 0; }
+
+#pnt-edit-panel .pnt-edit-num {
+  all: initial;
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 26px;
+  padding: 0 12px;
+  border: 1px solid var(--pnt-field-border);
+  border-radius: var(--pnt-radius-sm);
+  background: var(--pnt-field);
+  font-family: var(--pnt-font);
+  cursor: ew-resize;
+  transition: border-color var(--pnt-duration-fast) var(--pnt-ease),
+              background var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-num:hover { border-color: var(--pnt-border-3); }
+
+#pnt-edit-panel .pnt-edit-num.pnt-edit-scrubbing {
+  border-color: var(--pnt-focus);
+  background: color-mix(in srgb, var(--pnt-accent) 8%, var(--pnt-field));
+}
+
+#pnt-edit-panel .pnt-edit-num:focus-within {
+  outline: 2px solid var(--pnt-focus);
+  outline-offset: 1px;
+  border-color: transparent;
+  cursor: text;
+}
+
+#pnt-edit-panel .pnt-edit-num.pnt-edit-inert { cursor: default; }
+
+#pnt-edit-panel .pnt-edit-input,
+#pnt-edit-panel .pnt-edit-static {
+  all: initial;
+  box-sizing: border-box;
+  min-width: 0;
+  text-align: center;
+  font: var(--pnt-weight-medium) var(--pnt-text-base)/1 var(--pnt-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--pnt-tracking-num);
+  color: var(--pnt-text-1);
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+#pnt-edit-panel .pnt-edit-input { width: 100%; }
+#pnt-edit-panel .pnt-edit-static { color: var(--pnt-text-3); white-space: nowrap; }
+
+#pnt-edit-panel .pnt-edit-input::selection {
+  background: rgb(from var(--pnt-accent) r g b / 0.35);
+}
+
+#pnt-edit-panel .pnt-edit-unit {
+  all: initial;
+  flex: none;
+  margin-left: 2px;
+  font: var(--pnt-text-sm)/1 var(--pnt-font-mono);
+  color: var(--pnt-text-3);
+}
+
+/* A value nothing has set yet — line-height reporting "normal", a width that
+   is still auto. The number shown is real, it just isn't a decision anyone
+   made, so it reads quieter than one that was. */
+#pnt-edit-panel .pnt-edit-num.pnt-edit-untouched .pnt-edit-input { color: var(--pnt-text-3); }
+
+/* Token-only mode: the number goes quiet and the capsule below carries the
+   decision. The field keeps its place so nothing reflows between elements. */
+#pnt-edit-panel .pnt-edit-num.pnt-edit-quiet .pnt-edit-input { color: var(--pnt-text-3); }
+
+#pnt-edit-panel .pnt-edit-arrow {
+  all: initial;
+  box-sizing: border-box;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--pnt-text-3);
+  opacity: 0.28;
+  cursor: ew-resize;
+  transition: opacity var(--pnt-duration-fast) var(--pnt-ease),
+              color var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-arrow.pnt-edit-dn { left: 0; }
+#pnt-edit-panel .pnt-edit-arrow.pnt-edit-up { right: 0; }
+
+/* Drawn, not typed: a chevron from two borders, so it is one stroke weight
+   with everything else in the chrome. */
+#pnt-edit-panel .pnt-edit-arrow::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-left: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  rotate: 45deg;
+  translate: 1px 0;
+}
+
+#pnt-edit-panel .pnt-edit-arrow.pnt-edit-up::before { rotate: -135deg; translate: -1px 0; }
+
+#pnt-edit-panel .pnt-edit-num:hover .pnt-edit-arrow { opacity: 0.75; }
+
+#pnt-edit-panel .pnt-edit-num[data-kind="tok"] .pnt-edit-arrow,
+#pnt-edit-panel .pnt-edit-num[data-kind="page"] .pnt-edit-arrow { cursor: pointer; }
+
+#pnt-edit-panel .pnt-edit-num .pnt-edit-arrow:hover { opacity: 1; color: var(--pnt-text-1); }
+#pnt-edit-panel .pnt-edit-num[data-kind="tok"] .pnt-edit-arrow:hover { color: var(--pnt-accent); }
+
+/* ----- The capsule -----
+   The second control of the two-control token form: under the field, the
+   name the value sits on, with the same arrows. Accent because the name
+   exists in the source; the page-value capsule of ADR 0004 wears the field
+   fill instead. A name may truncate; the capsule's tooltip carries it whole. */
+#pnt-edit-panel .pnt-edit-tok {
+  all: initial;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pnt-gap-tight);
+  width: 100%;
+  height: 22px;
+  padding: 0 var(--pnt-xs);
+  border: 1px solid transparent;
+  border-radius: var(--pnt-radius-sm);
+  background: var(--pnt-accent-soft);
+  font: var(--pnt-weight-medium) var(--pnt-text-sm)/1 var(--pnt-font-mono);
+  color: var(--pnt-accent);
+  white-space: nowrap;
+  min-width: 0;
+}
+
+#pnt-edit-panel .pnt-edit-tok button {
+  all: initial;
+  box-sizing: border-box;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 100%;
+  font: var(--pnt-weight-bold) var(--pnt-text-sm)/1 var(--pnt-font);
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-tok button:hover { opacity: 1; }
+
+#pnt-edit-panel .pnt-edit-tok button:focus-visible {
+  outline: 2px solid var(--pnt-focus);
+  outline-offset: -1px;
+  border-radius: var(--pnt-radius-xs);
+}
+
+#pnt-edit-panel .pnt-edit-tok b {
+  all: initial;
+  flex: 1;
+  min-width: 0;
+  padding: 0 3px;
+  text-align: center;
+  font: inherit;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A raw scrub can land between rungs. The stepper stays — stepping from there
+   is well defined — but it stops claiming a token it is not on. */
+#pnt-edit-panel .pnt-edit-tok.pnt-edit-offscale,
+#pnt-edit-panel .pnt-edit-tok.pnt-edit-page {
+  background: var(--pnt-field);
+  border-color: var(--pnt-field-border);
+  color: var(--pnt-text-3);
+}
+
+/* A colour's name has no ladder to step; the capsule only names it. */
+#pnt-edit-panel .pnt-edit-tok-color button { display: none; }
+
+/* ----- Auto ----- */
+#pnt-edit-panel .pnt-edit-auto {
+  all: initial;
+  box-sizing: border-box;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  height: 22px;
+  padding: 0 var(--pnt-sm);
+  border: 1px solid var(--pnt-border-2);
+  border-radius: var(--pnt-radius-sm);
+  background: transparent;
+  font: var(--pnt-weight-medium) var(--pnt-text-sm)/1 var(--pnt-font-sans);
+  color: var(--pnt-text-3);
+  cursor: pointer;
+  transition: background var(--pnt-duration-fast) var(--pnt-ease),
+              color var(--pnt-duration-fast) var(--pnt-ease),
+              border-color var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-auto[aria-checked="true"] {
+  background: var(--pnt-accent);
+  border-color: var(--pnt-accent);
+  color: var(--pnt-on-accent);
+}
+
+#pnt-edit-panel .pnt-edit-auto:hover:not([aria-checked="true"]) {
+  border-color: var(--pnt-border-3);
+  color: var(--pnt-text-1);
+}
+
+/* ----- Segment ----- */
+#pnt-edit-panel .pnt-edit-seg {
+  all: initial;
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  height: 26px;
+  border: 1px solid var(--pnt-field-border);
+  border-radius: var(--pnt-radius-sm);
+  background: var(--pnt-field);
+  overflow: hidden;
+}
+
+#pnt-edit-panel .pnt-edit-seg button {
+  all: initial;
+  box-sizing: border-box;
+  flex: 1;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  color: var(--pnt-text-3);
+  cursor: pointer;
+  font: var(--pnt-weight-medium) var(--pnt-text-sm)/1 var(--pnt-font);
+  transition: background var(--pnt-duration-fast) var(--pnt-ease),
+              color var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-seg button + button { border-left: 1px solid var(--pnt-field-border); }
+#pnt-edit-panel .pnt-edit-seg button:hover { color: var(--pnt-text-1); }
+#pnt-edit-panel .pnt-edit-seg button svg { width: 13px; height: 13px; }
+
+#pnt-edit-panel .pnt-edit-seg button[aria-checked="true"] {
+  background: var(--pnt-accent);
+  color: var(--pnt-on-accent);
+}
+
+#pnt-edit-panel .pnt-edit-seg button:focus-visible {
+  outline: 2px solid var(--pnt-focus);
+  outline-offset: -2px;
+}
+
+/* ----- Text ----- */
+#pnt-edit-panel .pnt-edit-textrow {
+  all: initial;
+  display: flex;
+  align-items: center;
+  gap: var(--pnt-xs);
+  width: 100%;
+  min-width: 0;
+}
+
+#pnt-edit-panel .pnt-edit-textwrap {
+  all: initial;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 var(--pnt-gap-section);
+  border: 1px solid var(--pnt-field-border);
+  border-radius: var(--pnt-radius-sm);
+  background: var(--pnt-field);
+  font-family: var(--pnt-font);
+  cursor: text;
+  transition: border-color var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-textwrap:hover { border-color: var(--pnt-border-3); }
+
+#pnt-edit-panel .pnt-edit-textwrap:focus-within {
+  outline: 2px solid var(--pnt-focus);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+#pnt-edit-panel .pnt-edit-textin {
+  all: initial;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  font: var(--pnt-weight-medium) var(--pnt-text-base)/1.3 var(--pnt-font-sans);
+  color: var(--pnt-text-1);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text !important;
+}
+
+#pnt-edit-panel .pnt-edit-textin::selection {
+  background: rgb(from var(--pnt-accent) r g b / 0.35);
+}
+
+/* The way out to the long-text editor. */
+#pnt-edit-panel .pnt-edit-expand {
+  all: initial;
+  box-sizing: border-box;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--pnt-radius-sm);
+  color: var(--pnt-text-2);
+  cursor: pointer;
+  transition: color var(--pnt-duration-fast) var(--pnt-ease),
+              background var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-expand:hover {
+  color: var(--pnt-text-1);
+  background: var(--pnt-surface-2);
+}
+
+#pnt-edit-panel .pnt-edit-expand svg { width: 13px; height: 13px; }
+
+/* ----- The type style chip -----
+   The composite's seat: the style in force, drifted or not, with the
+   ladder's arrows when it has one. Drift makes the chip itself the way home. */
+#pnt-edit-panel .pnt-type-chip {
+  all: initial;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--pnt-sm);
+  width: 100%;
+  height: 26px;
+  padding: 0 var(--pnt-gap-section);
+  border: 1px solid transparent;
+  border-radius: var(--pnt-radius-sm);
+  background: var(--pnt-accent-soft);
+  font-family: var(--pnt-font);
+  transition: background var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-type-name {
+  all: initial;
+  min-width: 0;
+  font: var(--pnt-weight-medium) var(--pnt-text-base)/1 var(--pnt-font-mono);
+  color: var(--pnt-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#pnt-edit-panel .pnt-type-mod {
+  all: initial;
+  min-width: 0;
+  font: var(--pnt-text-sm)/1 var(--pnt-font-sans);
+  color: var(--pnt-text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#pnt-edit-panel .pnt-type-st {
+  all: initial;
+  box-sizing: border-box;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 100%;
+  font: var(--pnt-weight-bold) var(--pnt-text-sm)/1 var(--pnt-font);
+  color: var(--pnt-accent);
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-type-st:hover { opacity: 1; }
+
+#pnt-edit-panel .pnt-type-chip.pnt-type-drifted {
+  border-color: color-mix(in srgb, var(--pnt-accent) 50%, transparent);
+  border-style: dashed;
+  cursor: pointer;
+}
+
+#pnt-edit-panel .pnt-type-chip.pnt-type-drifted:hover {
+  background: color-mix(in srgb, var(--pnt-accent) 20%, transparent);
+}
+
+#pnt-edit-panel .pnt-type-conform {
+  all: initial;
+  flex: none;
+  margin-left: auto;
+  font: var(--pnt-weight-medium) var(--pnt-text-sm)/1 var(--pnt-font-sans);
+  color: var(--pnt-accent);
+  opacity: 0;
+  white-space: nowrap;
+  transition: opacity var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-type-chip.pnt-type-drifted:hover .pnt-type-conform { opacity: 1; }
+
+/* ----- Colour -----
+   The field for a colour: a swatch and the value, one chip that opens the
+   picker. The swatch has no padding ring — an opaque colour fills it edge to
+   edge, and the chequerboard shows only through translucency. The
+   chequerboard stays a neutral reference, never themed: the swatch reports
+   the inspected page's colour. */
+#pnt-edit-panel .pnt-edit-color {
+  all: initial;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--pnt-sm);
+  width: 100%;
+  height: 26px;
+  padding: 0 var(--pnt-gap-section);
+  border: 1px solid var(--pnt-field-border);
+  border-radius: var(--pnt-radius-sm);
+  background: var(--pnt-field);
+  font-family: var(--pnt-font);
+  cursor: pointer;
+  transition: border-color var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-edit-panel .pnt-edit-color:hover { border-color: var(--pnt-border-3); }
+
+#pnt-edit-panel .pnt-edit-color:focus-visible {
+  outline: 2px solid var(--pnt-focus);
+  outline-offset: 1px;
+}
+
+#pnt-edit-panel .pnt-edit-swatch {
+  all: initial;
+  box-sizing: border-box;
+  position: relative;
+  display: block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--pnt-swatch-border);
+  border-radius: var(--pnt-radius-xs);
+  background-color: var(--pnt-checker);
+  background-image:
+    linear-gradient(45deg, var(--pnt-mask) 25%, transparent 25% 75%, var(--pnt-mask) 75%),
+    linear-gradient(45deg, var(--pnt-mask) 25%, transparent 25% 75%, var(--pnt-mask) 75%);
+  background-size: 6px 6px;
+  background-position: 0 0, 3px 3px;
+  overflow: hidden;
+}
+
+#pnt-edit-panel .pnt-edit-swatch i {
+  display: block;
+  position: absolute;
+  inset: 0;
+}
+
+#pnt-edit-panel .pnt-edit-hex {
+  all: initial;
+  min-width: 0;
+  font: var(--pnt-weight-medium) var(--pnt-text-base)/1 var(--pnt-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--pnt-tracking-num);
+  color: var(--pnt-text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Three across is tight for a hex: the colour chip closes up and its value
+   drops to the small size, so #1d1917 fits a Typography cell at 280. */
+#pnt-edit-panel .pnt-edit-c3 .pnt-edit-color {
+  gap: var(--pnt-xs);
+  padding: 0 var(--pnt-sm);
+}
+
+#pnt-edit-panel .pnt-edit-c3 .pnt-edit-hex { font-size: var(--pnt-text-sm); }
+
+/* Read-only inventories keep their rows honest: visible, valued, inert. */
+#pnt-edit-panel .pnt-adv-readonly { opacity: 0.65; }
+#pnt-edit-panel .pnt-adv-readonly .pnt-edit-num,
+#pnt-edit-panel .pnt-adv-readonly .pnt-edit-num *,
+#pnt-edit-panel .pnt-adv-readonly .pnt-edit-color,
+#pnt-edit-panel .pnt-adv-readonly .pnt-edit-label {
+  cursor: default !important;
+}
+
+/* ===== Colour picker =====
+   Its own root, not a child of the panel. Inside it, it was clipped by the
+   panel's overflow, locked to the panel's width, and painted over the very rows
+   it was tuning. Viewport-fixed and placed beside the panel by
+   positionColorPicker(); it stacks above the panel by being appended after it,
+   since --pnt-z-chrome is already the highest z-index there is. */
+#pnt-color-picker {
+  all: initial;
+  box-sizing: border-box;
+  position: fixed;
+  z-index: var(--pnt-z-chrome);
+  width: 216px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pnt-sm);
+  padding: var(--pnt-gap-section);
+  background: var(--pnt-glass);
+  -webkit-backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  border: 1px solid var(--pnt-border-2);
+  border-radius: var(--pnt-radius-lg);
+  box-shadow: var(--pnt-shadow-1);
+  font-family: var(--pnt-font);
+}
+
+/* The picker no longer sits under the row it edits, so it names its property
+   and carries the close affordance the nested version never had. */
+#pnt-color-picker .pnt-edit-pophead,
+#pnt-rung-list .pnt-edit-pophead {
+  all: initial;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pnt-gap-base);
+}
+
+#pnt-color-picker .pnt-edit-poptitle,
+#pnt-rung-list .pnt-edit-poptitle {
+  all: initial;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--pnt-text-1);
+  font: var(--pnt-weight-medium) var(--pnt-text-base)/1.4 var(--pnt-font);
+}
+
+#pnt-color-picker .pnt-edit-popclose,
+#pnt-rung-list .pnt-edit-popclose {
+  all: initial;
+  box-sizing: border-box;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-right: calc(-1 * var(--pnt-xs));
+  display: grid;
+  place-items: center;
+  border-radius: var(--pnt-radius-sm);
+  background: transparent;
+  color: var(--pnt-text-2);
+  cursor: pointer;
+  transition: color var(--pnt-duration-fast) var(--pnt-ease),
+              background var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-color-picker .pnt-edit-popclose svg,
+#pnt-rung-list .pnt-edit-popclose svg { width: 13px; height: 13px; }
+
+#pnt-color-picker .pnt-edit-popclose:hover,
+#pnt-rung-list .pnt-edit-popclose:hover {
+  background: var(--pnt-surface-2);
+  color: var(--pnt-text-1);
+}
+
+#pnt-color-picker .pnt-edit-palette {
+  all: initial;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pnt-gap-pair);
+}
+
+#pnt-color-picker .pnt-edit-pal {
+  all: initial;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--pnt-radius-xs);
+  border: 1px solid var(--pnt-border-2);
+  /* background-color comes from the token being offered, written by paint() */
+  cursor: pointer;
+}
+
+#pnt-color-picker .pnt-edit-pal:hover { border-color: var(--pnt-accent); }
+
+#pnt-color-picker .pnt-edit-pal:focus-visible {
+  outline: 1px solid var(--pnt-accent);
+  outline-offset: 1px;
+}
+
+/* Says what the swatch row is, and what the swatch under the pointer is called.
+   One line, always occupied — an empty-until-hovered caption would resize the
+   picker on approach and move the target away from the pointer. */
+#pnt-color-picker .pnt-edit-palcap {
+  all: initial;
+  display: flex;
+  align-items: baseline;
+  gap: var(--pnt-gap-pair);
+  min-width: 0;
+  /* The name is the part worth truncating; the value is short and fixed. */
+  overflow: hidden;
+  white-space: nowrap;
+  font: var(--pnt-text-sm)/1.4 var(--pnt-font);
+}
+
+#pnt-color-picker .pnt-edit-palcap b {
+  all: initial;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--pnt-accent);
+  font: var(--pnt-weight-medium) var(--pnt-text-sm)/1.4 var(--pnt-font);
+}
+
+#pnt-color-picker .pnt-edit-palcap span {
+  all: initial;
+  flex: none;
+  color: var(--pnt-text-2);
+  font: var(--pnt-text-sm)/1.4 var(--pnt-font);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Saturation to the right, value downward, over the pure hue. The white and
+   black stops are the colour space, not a theme choice — see tokens.css. */
+#pnt-color-picker .pnt-edit-sat {
+  all: initial;
+  box-sizing: border-box;
+  position: relative;
+  display: block;
+  height: 88px;
+  border-radius: var(--pnt-radius-sm);
+  /* The two gradients are the colour space and live here; the pure hue beneath
+     them is background-color, written by the picker as it moves. */
+  background-image:
+    linear-gradient(to top, var(--pnt-picker-black), transparent),
+    linear-gradient(to right, var(--pnt-picker-white), transparent);
+  touch-action: none;
+}
+
+#pnt-color-picker .pnt-edit-rails {
+  all: initial;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pnt-gap-base);
+}
+
+#pnt-color-picker .pnt-edit-hue,
+#pnt-color-picker .pnt-edit-alpha {
+  all: initial;
+  box-sizing: border-box;
+  position: relative;
+  display: block;
+  height: 10px;
+  border-radius: 5px;
+  touch-action: none;
+}
+
+#pnt-color-picker .pnt-edit-hue { background: var(--pnt-hue-ramp); }
+
+#pnt-color-picker .pnt-edit-alpha {
+  background-color: var(--pnt-checker);
+  background-image:
+    linear-gradient(45deg, var(--pnt-mask) 25%, transparent 25% 75%, var(--pnt-mask) 75%),
+    linear-gradient(45deg, var(--pnt-mask) 25%, transparent 25% 75%, var(--pnt-mask) 75%);
+  background-size: 6px 6px;
+  background-position: 0 0, 3px 3px;
+  overflow: hidden;
+}
+
+#pnt-color-picker .pnt-edit-alpha span {
+  all: initial;
+  display: block;
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  /* background-image is the ramp to the picked colour, written by paint() */
+}
+
+#pnt-color-picker .pnt-edit-sat-dot,
+#pnt-color-picker .pnt-edit-rail-dot {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--pnt-picker-white);
+  box-shadow: 0 0 0 1px rgb(from var(--pnt-mask) r g b / 0.4);
+  pointer-events: none;
+  translate: -50% -50%;
+}
+
+/* The square's dot is filled with the colour under it; the rail dots are rings
+   over a ramp that already shows the value, so they stay hollow. */
+#pnt-color-picker .pnt-edit-rail-dot { top: 50%; background: transparent; }
+
+#pnt-color-picker .pnt-edit-popfoot {
+  all: initial;
+  display: flex;
+  align-items: center;
+  gap: var(--pnt-gap-base);
+}
+
+#pnt-color-picker .pnt-edit-hexin {
+  all: initial;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 var(--pnt-gap-section);
+  border: 1px solid var(--pnt-field-border);
+  border-radius: var(--pnt-radius-sm);
+  background: var(--pnt-field);
+  color: var(--pnt-text-1);
+  font: var(--pnt-weight-medium) var(--pnt-text-base)/1.3 var(--pnt-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+#pnt-color-picker .pnt-edit-hexin:focus {
+  outline: 2px solid var(--pnt-focus);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+#pnt-color-picker .pnt-edit-drop {
+  all: initial;
+  box-sizing: border-box;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--pnt-border-2);
+  border-radius: var(--pnt-radius-sm);
+  background: transparent;
+  color: var(--pnt-text-2);
+  font: var(--pnt-text-base)/1 var(--pnt-font);
+  cursor: pointer;
+}
+
+#pnt-color-picker .pnt-edit-drop:hover { border-color: var(--pnt-accent); color: var(--pnt-accent); }
+
+/* ===== Rung list =====
+   The field's ladder laid out, with any token in scope that equals the
+   current value beneath it. Its own root beside the panel, in the picker's
+   glass and with the picker's head. Names in the accent because they exist
+   in the source; a page ladder's rungs are values, and read as values. */
+#pnt-rung-list {
+  all: initial;
+  box-sizing: border-box;
+  position: fixed;
+  z-index: var(--pnt-z-chrome);
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pnt-xs);
+  padding: var(--pnt-gap-section);
+  background: var(--pnt-glass);
+  -webkit-backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  border: 1px solid var(--pnt-border-2);
+  border-radius: var(--pnt-radius-lg);
+  box-shadow: var(--pnt-shadow-2);
+  font-family: var(--pnt-font);
+  color: var(--pnt-text-1);
+}
+
+#pnt-rung-list .pnt-rung-rows {
+  all: initial;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+#pnt-rung-list .pnt-rung {
+  all: initial;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pnt-gap-section);
+  padding: 5px var(--pnt-sm);
+  border-radius: var(--pnt-radius-xs);
+  font: var(--pnt-weight-medium) var(--pnt-text-sm)/1 var(--pnt-font-mono);
+  color: var(--pnt-accent);
+  cursor: pointer;
+  transition: background var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-rung-list .pnt-rung b {
+  all: initial;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#pnt-rung-list .pnt-rung s {
+  all: initial;
+  flex: none;
+  font: var(--pnt-text-sm)/1 var(--pnt-font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--pnt-text-3);
+}
+
+#pnt-rung-list .pnt-rung:hover { background: var(--pnt-surface-2); }
+
+#pnt-rung-list .pnt-rung:focus-visible {
+  outline: 2px solid var(--pnt-focus);
+  outline-offset: -2px;
+}
+
+#pnt-rung-list .pnt-rung.pnt-rung-on { background: var(--pnt-accent-soft); }
+
+#pnt-rung-list .pnt-rung.pnt-rung-on::after {
+  content: "";
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--pnt-accent);
+}
+
+#pnt-rung-list .pnt-rung.pnt-rung-page { color: var(--pnt-text-1); }
+
+#pnt-rung-list .pnt-rung-sep {
+  all: initial;
+  display: block;
+  height: 1px;
+  margin: var(--pnt-gap-tight) 0;
+  background: var(--pnt-border-1);
+}
+
+#pnt-rung-list .pnt-rung-h {
+  all: initial;
+  display: block;
+  padding: var(--pnt-xs) var(--pnt-sm) 3px;
+  font: var(--pnt-weight-medium) var(--pnt-text-sm)/1 var(--pnt-font-sans);
+  color: var(--pnt-text-3);
+}
+
+/* The capsule's name opens the list; say so. */
+#pnt-edit-panel .pnt-edit-tok b:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* ===== Settings Button =====
+   Viewport chrome, not selection chrome: mounted by activate() and pinned to the
+   top-right corner for as long as point mode is on, whether or not anything is
+   selected. The same glass as the bar, quiet until hovered.
+
+   Square and icon-only, which keeps its footprint small against the label. It
+   still collides: three of the placement strategies dock the label to the
+   visible top edge. layoutChrome() fades the button out when they overlap —
+   the interactive selection chrome wins, this yields. */
+#pnt-settings-btn {
+  all: initial;
+  position: fixed;
+  top: var(--pnt-btn-x);
+  right: var(--pnt-btn-x);
+  z-index: var(--pnt-z-chrome);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--pnt-glass);
+  -webkit-backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  color: var(--pnt-text-2);
+  border: 1px solid var(--pnt-border-2);
+  border-radius: var(--pnt-radius-md);
+  box-shadow: var(--pnt-shadow-1);
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background var(--pnt-duration) var(--pnt-ease),
+              color var(--pnt-duration) var(--pnt-ease),
+              opacity var(--pnt-duration) var(--pnt-ease);
+}
+
+#pnt-settings-btn:hover {
+  background: color-mix(in srgb, var(--pnt-surface-2) 85%, transparent);
+  color: var(--pnt-text-1);
+}
+
+#pnt-settings-btn:active {
+  background: var(--pnt-accent-soft);
+  color: var(--pnt-accent);
+}
+
+/* Yielded to the selection chrome. Not display:none — the layout pass has to
+   keep measuring its rect to know when the collision ends. */
+#pnt-settings-btn.pnt-yielded {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ===== Toast Notification =====
+   A sentence on glass with a mark in front of it — a check in the ok colour,
+   an alert in danger. It arrives on the standard curve and leaves on the
+   shorter exit; the transition is read from the state being entered, which is
+   what makes one rule pair do both. */
+#pnt-toast {
+  all: initial;
+  background: var(--pnt-glass);
+  -webkit-backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  color: var(--pnt-text-1);
+  border: 1px solid var(--pnt-border-2);
+  box-shadow: var(--pnt-shadow-1);
+  padding: 0 var(--pnt-btn-x) 0 var(--pnt-md);
+  border-radius: var(--pnt-radius-lg);
+  font: var(--pnt-weight-medium) var(--pnt-text-base)/var(--pnt-leading-tight) var(--pnt-font-sans);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--pnt-duration-exit) var(--pnt-ease-exit),
+              transform var(--pnt-duration-exit) var(--pnt-ease-exit);
+  pointer-events: none;
+  white-space: nowrap;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--pnt-sm);
+}
+
+/* Toast is always positioned via JS */
+
+#pnt-toast.pnt-toast-visible {
+  opacity: 1;
+  transform: none;
+  transition: opacity var(--pnt-duration) var(--pnt-ease),
+              transform var(--pnt-duration) var(--pnt-ease);
+}
+
+#pnt-toast .pnt-toast-icon {
+  display: flex;
+  color: var(--pnt-ok);
+}
+
+#pnt-toast .pnt-toast-icon svg {
+  width: var(--pnt-icon);
+  height: var(--pnt-icon);
+  stroke-width: 2;
+}
+
+#pnt-toast.pnt-toast-error {
+  border-color: color-mix(in srgb, var(--pnt-danger) 45%, var(--pnt-border-2));
+}
+
+#pnt-toast.pnt-toast-error .pnt-toast-icon {
+  color: var(--pnt-danger);
+}
+
+/* ===== Point Mode Cursor ===== */
+/* Flatten every page cursor to the plain arrow while probing — an I-beam or
+   link pointer would suggest the page's own interactions are live when clicks
+   are being intercepted. The probe's controls stay `pointer` via the
+   re-assertions below: everything here is !important, so the ID-prefixed
+   selectors win on specificity. Descendants (button SVGs) need their own
+   match — the universal rule hits them directly, not by inheritance. */
+.pnt-point-active,
+.pnt-point-active * {
+  cursor: default !important;
+}
+
+#pnt-toolbar button,
+#pnt-toolbar button *,
+#pnt-settings-btn,
+#pnt-settings-btn * {
+  cursor: pointer !important;
+}
+
+#pnt-toolbar button.pnt-button-disabled,
+#pnt-toolbar button.pnt-button-disabled * {
+  cursor: not-allowed !important;
+}
+
+/* The edit panel is the one surface where the page's flattened arrow is wrong
+   throughout: everything in it is grabbable, clickable or scrubbable, and the
+   cursor is how each of those announces itself. */
+#pnt-edit-panel .pnt-edit-back,
+#pnt-edit-panel .pnt-edit-back * {
+  cursor: pointer !important;
+}
+
+#pnt-edit-panel .pnt-edit-head,
+#pnt-edit-panel .pnt-edit-head * {
+  cursor: grab !important;
+}
+
+#pnt-edit-panel .pnt-edit-head.pnt-edit-dragging,
+#pnt-edit-panel .pnt-edit-head.pnt-edit-dragging * {
+  cursor: grabbing !important;
+}
+
+/* The picker is chrome, so its inert parts — the title, the padding — read as
+   chrome rather than inheriting the page's crosshair. Everything below that is
+   actually operable overrides this on specificity. */
+#pnt-color-picker,
+#pnt-color-picker *,
+#pnt-rung-list,
+#pnt-rung-list * {
+  cursor: default !important;
+}
+
+#pnt-edit-panel .pnt-edit-act,
+#pnt-edit-panel .pnt-edit-act *,
+#pnt-edit-panel .pnt-edit-title,
+#pnt-edit-panel .pnt-edit-title *,
+#pnt-edit-panel .pnt-edit-disc,
+#pnt-edit-panel .pnt-edit-disc *,
+#pnt-edit-panel .pnt-edit-label.pnt-edit-on,
+#pnt-edit-panel .pnt-edit-label.pnt-edit-on *,
+#pnt-edit-panel .pnt-edit-link,
+#pnt-edit-panel .pnt-edit-link *,
+#pnt-edit-panel .pnt-edit-auto,
+#pnt-edit-panel .pnt-edit-seg button,
+#pnt-edit-panel .pnt-edit-seg button *,
+#pnt-edit-panel .pnt-edit-arrow,
+#pnt-edit-panel .pnt-edit-tok button,
+#pnt-edit-panel .pnt-edit-tok b,
+#pnt-rung-list .pnt-rung,
+#pnt-rung-list .pnt-rung *,
+#pnt-rung-list .pnt-edit-popclose,
+#pnt-rung-list .pnt-edit-popclose *,
+#pnt-edit-panel .pnt-type-st,
+#pnt-edit-panel .pnt-type-chip.pnt-type-drifted,
+#pnt-edit-panel .pnt-type-chip.pnt-type-drifted *,
+#pnt-edit-panel .pnt-edit-expand,
+#pnt-edit-panel .pnt-edit-expand *,
+#pnt-edit-panel .pnt-edit-color,
+#pnt-edit-panel .pnt-edit-color *,
+#pnt-color-picker .pnt-edit-pal,
+#pnt-color-picker .pnt-edit-drop,
+#pnt-color-picker .pnt-edit-popclose,
+#pnt-color-picker .pnt-edit-popclose * {
+  cursor: pointer !important;
+}
+
+#pnt-edit-panel .pnt-edit-degraded { cursor: help !important; }
+
+/* The picker's surfaces are crosshair-and-drag, not click targets. */
+#pnt-color-picker .pnt-edit-sat,
+#pnt-color-picker .pnt-edit-sat * {
+  cursor: crosshair !important;
+}
+
+#pnt-color-picker .pnt-edit-hue,
+#pnt-color-picker .pnt-edit-hue *,
+#pnt-color-picker .pnt-edit-alpha,
+#pnt-color-picker .pnt-edit-alpha * {
+  cursor: ew-resize !important;
+}
+
+#pnt-color-picker .pnt-edit-hexin { cursor: text !important; }
+
+/* The value chip announces that it can be dragged; the field inside it stays
+   a text cursor, because clicking it is how you type instead. */
+#pnt-edit-panel .pnt-edit-num,
+#pnt-edit-panel .pnt-edit-unit {
+  cursor: ew-resize !important;
+}
+
+#pnt-edit-panel .pnt-edit-input {
+  cursor: text !important;
+}
+
+#pnt-edit-panel .pnt-edit-num.pnt-edit-scrubbing,
+#pnt-edit-panel .pnt-edit-num.pnt-edit-scrubbing * {
+  cursor: ew-resize !important;
+}
+
+/* ===== The long-text editor =====
+   A sibling root beside the panel — the picker's arrangement, for words. */
+#pnt-text-editor {
+  all: initial;
+  position: fixed;
+  z-index: var(--pnt-z-chrome);
+  box-sizing: border-box;
+  width: 220px;
+  font-family: var(--pnt-font);
+  color: var(--pnt-text-1);
+  background: var(--pnt-glass);
+  -webkit-backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  backdrop-filter: blur(var(--pnt-blur)) saturate(1.15);
+  border: 1px solid var(--pnt-border-2);
+  border-radius: var(--pnt-radius-lg);
+  box-shadow: var(--pnt-shadow-1);
+  padding: var(--pnt-gap-section);
+}
+
+#pnt-text-editor .pnt-txted-head {
+  all: initial;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font: var(--pnt-weight-medium) var(--pnt-text-base)/1.3 var(--pnt-font-sans);
+  color: var(--pnt-text-1);
+  margin-bottom: var(--pnt-sm);
+}
+
+#pnt-text-editor .pnt-txted-head button {
+  all: initial;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-right: calc(-1 * var(--pnt-xs));
+  border-radius: var(--pnt-radius-sm);
+  color: var(--pnt-text-2);
+  cursor: pointer;
+  transition: color var(--pnt-duration-fast) var(--pnt-ease),
+              background var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+#pnt-text-editor .pnt-txted-head button svg { width: 13px; height: 13px; }
+
+#pnt-text-editor .pnt-txted-head button:hover {
+  color: var(--pnt-text-1);
+  background: var(--pnt-surface-2);
+}
+
+#pnt-text-editor textarea {
+  all: initial;
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  height: 72px;
+  resize: none;
+  border: 1px solid var(--pnt-field-border);
+  border-radius: var(--pnt-radius-sm);
+  background: var(--pnt-field);
+  color: var(--pnt-text-1);
+  font: var(--pnt-text-base)/1.5 var(--pnt-font-sans);
+  padding: 5px var(--pnt-gap-section);
+  cursor: text !important;
+}
+
+#pnt-text-editor textarea:focus {
+  outline: 2px solid var(--pnt-focus);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+#pnt-text-editor textarea::selection {
+  background: rgb(from var(--pnt-accent) r g b / 0.35);
+}
+
+#pnt-text-editor .pnt-txted-count {
+  all: initial;
+  display: block;
+  font: var(--pnt-text-sm)/1.4 var(--pnt-font-mono);
+  color: var(--pnt-text-3);
+  text-align: right;
+  margin-top: 3px;
+}
+
+/* ===== Edit Panel — footer =====
+   The keyboard ladder for this mode: the undo timeline, its redo, and the way
+   back. Only what is bound. */
+#pnt-edit-panel .pnt-edit-foot {
+  all: initial;
+  box-sizing: border-box;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pnt-sm);
+  padding: var(--pnt-sm) var(--pnt-md);
+  border-top: 1px solid var(--pnt-border-1);
+  position: relative;
+  z-index: 1;
+  transition: box-shadow var(--pnt-duration-fast) var(--pnt-ease);
+  font: var(--pnt-weight-regular) var(--pnt-text-sm)/1 var(--pnt-font-sans);
+  color: var(--pnt-text-3);
+  white-space: nowrap;
+}
+
+#pnt-edit-panel .pnt-edit-foot span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pnt-xs);
+}
+
+/* Values are mono; words are sans. --pnt-font means the sans since Phase 3b,
+   so everything that reads out a number, a token or a colour opts in here. */
+#pnt-edit-panel .pnt-edit-hex,
+#pnt-edit-panel .pnt-edit-sum,
+#pnt-color-picker .pnt-edit-palcap b,
+#pnt-color-picker .pnt-edit-palcap span {
+  font-family: var(--pnt-font-mono);
+}
+
+/* ===== Rail =====
+   The one scrollbar every surface the chrome scrolls draws for itself — the
+   panel body, the long-text editor's textarea, the settings page and its
+   payload box. rail.js draws it: the native bar goes, a 3px rail sits inside
+   the scroller's right padding, the thumb is sized from the scroller's own
+   numbers, tinted with the accent, shown while scrolling and gone
+   --pnt-rail-linger after the last event. It takes no width, so nothing
+   shifts when it appears. Chosen in test/edit-scroll-prototypes.html (03).
+
+   `scrollbar-width: none` is what Chrome 121+ honours; the ::-webkit rule is
+   the same instruction for the Chrome before it. One or the other applies,
+   never both — Chrome ignores the pseudo-element once the property is set.
+
+   Last in the file on purpose, and named through the two roots: the panel
+   body and the textarea are declared with `all: initial` at ID specificity
+   above, which resets scrollbar-width to auto and would beat a bare class.
+   Same specificity, later source, is what makes this the rule that wins. */
+#pnt-edit-panel .pnt-scroller,
+#pnt-text-editor .pnt-scroller,
+.pnt-scroller { scrollbar-width: none; }
+#pnt-edit-panel .pnt-scroller::-webkit-scrollbar,
+#pnt-text-editor .pnt-scroller::-webkit-scrollbar,
+.pnt-scroller::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+.pnt-rail {
+  all: initial;
+  box-sizing: border-box;
+  position: absolute;
+  right: var(--pnt-rail-gap);
+  width: var(--pnt-rail);
+  display: block;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 1;
+  transition: opacity var(--pnt-duration-fast) var(--pnt-ease);
+}
+
+/* The settings page scrolls as a page: its rail rides the viewport. */
+.pnt-rail.pnt-rail-fixed {
+  position: fixed;
+  top: 0;
+  height: 100vh;
+  z-index: var(--pnt-z-chrome);
+}
+
+.pnt-rail.pnt-rail-on { opacity: 1; }
+.pnt-rail.pnt-rail-empty { display: none; }
+
+.pnt-rail-thumb {
+  all: initial;
+  box-sizing: border-box;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: 100%;
+  border-radius: calc(var(--pnt-rail) / 2);
+  background: var(--pnt-rail-tint);
+}

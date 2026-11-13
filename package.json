@@ -1,0 +1,371 @@
+{
+  "name": "pointee-vscode",
+  "displayName": "Pointee for VS Code",
+  "description": "Pick elements in VS Code's integrated browser and share source pointers, live edits, and screenshots with any AI agent.",
+  "version": "0.1.0",
+  "publisher": "pointee",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.145.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "browser",
+    "inspector",
+    "AI",
+    "elements",
+    "pointee"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "enabledApiProposals": [
+    "browser"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "check": "tsc --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "test:integration": "npm run build && node scripts/test-integration.mjs",
+    "test:ui": "npm run build && node test/ui.mjs",
+    "package": "npm run build && vsce package --allow-missing-repository --out pointee-vscode-0.1.0.vsix",
+    "vscode:prepublish": "npm run build"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "pointee.openBrowser",
+        "title": "Open Integrated Browser",
+        "category": "Pointee",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "pointee.togglePicker",
+        "title": "Toggle Element Picker",
+        "category": "Pointee",
+        "icon": "$(inspect)"
+      },
+      {
+        "command": "pointee.stopPicker",
+        "title": "Stop Picking",
+        "category": "Pointee",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "pointee.copySelection",
+        "title": "Copy Selected Element for Agent",
+        "category": "Pointee",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "pointee.screenshot",
+        "title": "Save Element Screenshot",
+        "category": "Pointee",
+        "icon": "$(device-camera)"
+      },
+      {
+        "command": "pointee.selectParent",
+        "title": "Select Parent Element",
+        "category": "Pointee"
+      },
+      {
+        "command": "pointee.editSelection",
+        "title": "Edit Selected Element",
+        "category": "Pointee"
+      },
+      {
+        "command": "pointee.copyRecord",
+        "title": "Copy Context",
+        "category": "Pointee",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "pointee.exportContext",
+        "title": "Export Context as Markdown",
+        "category": "Pointee",
+        "icon": "$(export)"
+      },
+      {
+        "command": "pointee.openContext",
+        "title": "Open Context",
+        "category": "Pointee",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "pointee.openScreenshot",
+        "title": "Open Screenshot",
+        "category": "Pointee"
+      },
+      {
+        "command": "pointee.clearHistory",
+        "title": "Clear Context History",
+        "category": "Pointee",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "pointee.settings",
+        "title": "Settings",
+        "category": "Pointee",
+        "icon": "$(gear)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "pointee.togglePicker",
+        "key": "ctrl+alt+p",
+        "mac": "cmd+alt+p"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "pointee.contexts",
+          "name": "Pointee",
+          "icon": "$(inspect)"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "pointee.contexts",
+        "contents": "[Open Browser](command:pointee.openBrowser)\n[Pick Element](command:pointee.togglePicker)",
+        "when": "!pointee.hasContexts"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "pointee.togglePicker",
+          "when": "view == pointee.contexts",
+          "group": "navigation@1"
+        },
+        {
+          "command": "pointee.openBrowser",
+          "when": "view == pointee.contexts",
+          "group": "navigation@2"
+        },
+        {
+          "command": "pointee.clearHistory",
+          "when": "view == pointee.contexts && pointee.hasContexts",
+          "group": "navigation@3"
+        },
+        {
+          "command": "pointee.settings",
+          "when": "view == pointee.contexts",
+          "group": "navigation@4"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "pointee.copyRecord",
+          "when": "view == pointee.contexts",
+          "group": "inline@1"
+        },
+        {
+          "command": "pointee.exportContext",
+          "when": "view == pointee.contexts",
+          "group": "inline@2"
+        },
+        {
+          "command": "pointee.openScreenshot",
+          "when": "view == pointee.contexts && viewItem == pointee.contextWithScreenshot",
+          "group": "1_context"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "pointee.togglePicker",
+          "when": "activeEditor == workbench.editor.browser",
+          "group": "navigation@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Pointee",
+      "properties": {
+        "pointee.theme": {
+          "type": "string",
+          "enum": [
+            "system",
+            "light",
+            "dark",
+            "dracula",
+            "monokai",
+            "nord",
+            "solarized-dark",
+            "tokyo-night"
+          ],
+          "default": "system",
+          "description": "Theme for the in-page inspector."
+        },
+        "pointee.copyHtml": {
+          "type": "string",
+          "enum": [
+            "root",
+            "shape",
+            "full",
+            "none"
+          ],
+          "default": "root",
+          "description": "Amount of HTML included in an element pointer."
+        },
+        "pointee.copyDepth": {
+          "type": "string",
+          "enum": [
+            "1",
+            "2",
+            "3"
+          ],
+          "default": "3",
+          "description": "Maximum depth of the full HTML subtree."
+        },
+        "pointee.copyFields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "source",
+              "component",
+              "page",
+              "anchor",
+              "handlers",
+              "selector",
+              "position",
+              "repeated",
+              "text",
+              "layout",
+              "styles",
+              "props"
+            ]
+          },
+          "default": [
+            "source",
+            "component",
+            "page",
+            "anchor",
+            "handlers",
+            "selector",
+            "position",
+            "repeated",
+            "text"
+          ],
+          "description": "Fields to include in agent context. Source and component resolution are best-effort."
+        },
+        "pointee.copyHtmlFallback": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include a full HTML subtree when no source location or component is available."
+        },
+        "pointee.copyFence": {
+          "type": "boolean",
+          "default": true,
+          "description": "Wrap copied pointers in a Markdown code fence."
+        },
+        "pointee.redlineUnit": {
+          "type": "string",
+          "enum": [
+            "px",
+            "rem"
+          ],
+          "default": "px",
+          "description": "Unit used for Alt/Option distance measurements."
+        },
+        "pointee.redlinePrecision": {
+          "type": "string",
+          "enum": [
+            "whole",
+            "tenths"
+          ],
+          "default": "whole",
+          "description": "Distance measurement precision."
+        },
+        "pointee.redlinePillPlacement": {
+          "type": "string",
+          "enum": [
+            "beside",
+            "online"
+          ],
+          "default": "beside",
+          "description": "Placement of measurement values."
+        },
+        "pointee.redlineGuides": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show alignment guides while measuring."
+        },
+        "pointee.redlineQuietOverlay": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use a quiet overlay while measuring."
+        },
+        "pointee.redlineZeroPills": {
+          "type": "boolean",
+          "default": true,
+          "description": "Mark flush edges while measuring."
+        },
+        "pointee.editGroups": {
+          "type": "string",
+          "enum": [
+            "standard",
+            "adaptive"
+          ],
+          "default": "standard",
+          "description": "Show all edit groups or only groups relevant to the element."
+        },
+        "pointee.editTokenControls": {
+          "type": "string",
+          "enum": [
+            "both",
+            "token",
+            "value"
+          ],
+          "default": "both",
+          "description": "Show design token controls, numeric values, or both."
+        },
+        "pointee.editDeepShaderCapture": {
+          "type": "boolean",
+          "default": false,
+          "description": "Capture WebGL shaders from document start on pages where the picker has been started. Reload after enabling."
+        },
+        "pointee.inspectorLayerAid": {
+          "type": "string",
+          "enum": [
+            "ghost",
+            "plate",
+            "halo"
+          ],
+          "default": "ghost",
+          "description": "Visibility aid for the inspector's paint layers."
+        },
+        "pointee.historyLimit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20,
+          "description": "Maximum in-memory context records. Context is not persisted across VS Code restarts."
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pngjs": "^6.0.5",
+    "@types/vscode": "1.145.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.6.0",
+    "esbuild": "^0.25.0",
+    "playwright": "^1.56.0",
+    "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "pngjs": "^7.0.0"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/Jingquank/pointee",
+  "commit": "da0d7010d9734f27b4a27ea57e0fad6ed89d2fc9",
+  "version": "3.0.0",
+  "license": "MIT",
+  "files": ["content.js", "content.css", "tokens.css", "rail.js", "shader-agent.js", "fonts/Geist-Variable.woff2", "fonts/GeistMono-Variable.woff2", "fonts/OFL.txt", "LICENSE"],
+  "notes": "Vendored unchanged. scripts/build.mjs applies explicit VS Code adapter hooks at build time."
+}

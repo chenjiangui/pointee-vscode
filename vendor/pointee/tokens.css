@@ -1,0 +1,378 @@
+/* ===== Design tokens =====
+   Two tiers. :root holds the theme-invariant scales — type, space, radius,
+   blur, motion, layers — and the alpha variants derived from whichever theme
+   is active. Below that, one block per theme holds the semantic colours and
+   shadows. Only the second tier is themed; the scales never change.
+
+   Loaded before content.css (order is cascade order — see manifest.json), and
+   again by the settings page so its preview renders through the same tokens as
+   the real chrome.
+
+   DESIGN.md is the contract. test/tokens.mjs enforces it: no literal may
+   survive in content.css, every theme must declare the full set, every text
+   token must clear 4.5:1 against surface-0 — a floor, not a warning — and every
+   badge colour must match its theme's accent. Adding a theme means adding one
+   block here, one entry to THEMES in settings/settings.js, and one accent to
+   BADGE_ACCENT in background.js.
+
+   Alpha variants are derived, not declared:
+     rgb(from var(--pnt-surface-0) r g b / 0.82)
+   Chrome 119+. Firefox support was dropped in 1.2.0, so relative colour syntax
+   and color-mix() are available unconditionally. This is what keeps a theme to
+   21 declarations — every glass, soft fill and focus ring follows its base. */
+
+/* ===== Fonts =====
+   Geist Sans and Geist Mono ship inside the extension (fonts/, OFL). One
+   declaration serves both contexts: Chrome substitutes __MSG_@@extension_id__
+   in this file whether it arrives as a content-script stylesheet or through
+   the settings page's <link> — verified on github.com, example.com and the
+   options page with node scratch/fontcheck against the loaded extension.
+   Nothing is fetched from a font host any more: no request, no privacy line.
+   The 1.5.0 @import of Google Fonts registered no face at all in the same
+   check, so the mono users saw was always the fallback stack. ADR 0001. */
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("chrome-extension://__MSG_@@extension_id__/fonts/Geist-Variable.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("chrome-extension://__MSG_@@extension_id__/fonts/GeistMono-Variable.woff2") format("woff2");
+}
+
+/* ===== Tier 1: theme-invariant scales ===== */
+:root {
+  /* Type. Two faces from one family: sans for labels and controls, mono for
+     values, tokens and selectors. --pnt-font is the pre-2.0 name; since Phase
+     3b it means the sans, and every value that should be mono says so. */
+  --pnt-font-sans: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --pnt-font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --pnt-font: var(--pnt-font-sans);
+  /* Round four moved the whole scale up one pixel and redistributed it: the
+     de facto size of the chrome had been 11px, with 9 and 10px literals under
+     it, and everything read small. Now labels and values sit on base, titles
+     on lg, units and captions on sm, and micro is for keyboard chips and the
+     settings sheet's category labels alone. Pixels, never rem — the chrome
+     sits on pages whose root size it does not control. */
+  --pnt-text-micro: 11px;   /* keyboard chips, the settings sheet's category labels — never prose */
+  --pnt-text-sm: 12px;      /* units, captions, secondary readouts */
+  --pnt-text-base: 13px;    /* labels, controls, values */
+  --pnt-text-lg: 14px;      /* identity line, panel and section titles */
+  --pnt-weight-regular: 400;
+  --pnt-weight-medium: 500;
+  --pnt-weight-bold: 600;
+  --pnt-leading-tight: 1.3; /* buttons, toast, identity line */
+  --pnt-leading-base: 1.45; /* label body, panel rows */
+  --pnt-tracking-caps: 0.06em;
+  --pnt-tracking-num: 0.01em;
+
+  /* Space. */
+  --pnt-xs: 4px;
+  --pnt-sm: 6px;
+  --pnt-md: 10px;
+  --pnt-lg: 14px;
+  --pnt-xl: 16px;
+  --pnt-gap-tight: 2px;
+  --pnt-gap-pair: 3px;
+  --pnt-gap-base: 5px;
+  --pnt-gap-section: 8px;
+  --pnt-btn-y: 7px;
+  --pnt-btn-x: 12px;
+
+  /* Sizes that aren't spacing. */
+  --pnt-icon: 14px;
+  --pnt-swatch: 10px;
+  --pnt-ring: 2px;          /* selection stroke thickness */
+  --pnt-toast-inset: 24px;  /* toast's corner offset when there is no toolbar */
+
+  /* Radius. The Vermilion direction: soft. xs for swatches and key chips, sm
+     for cells and fields, md for buttons and chips, lg for every surface that
+     floats — label, bar, panel, picker, toast. */
+  --pnt-radius-xs: 4px;
+  --pnt-radius-sm: 8px;
+  --pnt-radius-md: 10px;
+  --pnt-radius-lg: 14px;
+
+  /* Material. Every floating surface is glass: surface-0 at this alpha behind
+     this blur. The alpha is here rather than per theme because it is the same
+     material in every palette; only the tint underneath changes. */
+  --pnt-glass-alpha: 0.82;
+  --pnt-blur: 16px;
+
+  /* Motion. Restrained: eased, never sprung, and a departure is always shorter
+     than an arrival. Chosen in round two of the brand directions over three
+     spring presets, played side by side on the real chrome. */
+  --pnt-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --pnt-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --pnt-duration: 180ms;
+  --pnt-duration-exit: 140ms;
+  --pnt-duration-fast: 120ms;
+  --pnt-duration-slow: 260ms;
+
+  /* The rail — the one scrollbar every surface the chrome scrolls draws for
+     itself (rail.js; chosen in test/edit-scroll-prototypes.html). Thickness
+     and inset are scales; the tint is derived from the accent below. The
+     linger is how long the rail stays after the last scroll event — a hold,
+     not a transition, so it is not one of the four durations above. */
+  --pnt-rail: 3px;
+  --pnt-rail-gap: 3px;
+  --pnt-rail-linger: 800ms;
+
+  /* Layers. Read by JS for the toast, which is positioned entirely from script. */
+  --pnt-z-overlay: 2147483646;
+  --pnt-z-chrome: 2147483647;
+
+  /* States. */
+  --pnt-opacity-disabled: 0.35;
+
+  /* Derived from the active theme. Declared once, here, so no theme can have a
+     glass that disagrees with its own surface or a focus ring that disagrees
+     with its own accent. */
+  --pnt-glass: rgb(from var(--pnt-surface-0) r g b / var(--pnt-glass-alpha));
+  --pnt-accent-soft: color-mix(in srgb, var(--pnt-accent) 14%, transparent);
+  --pnt-focus: color-mix(in srgb, var(--pnt-accent) 70%, transparent);
+  --pnt-scrim: rgb(0 0 0 / 0.12);
+  --pnt-rail-tint: rgb(from var(--pnt-accent) r g b / 0.55);
+  /* The field — every value chip in the panel, and the picker's and the text
+     editor's inputs. Mixed from the raised chip and the ground so it reads as
+     a field on the glass in every theme without a theme block changing. */
+  --pnt-field: color-mix(in srgb, var(--pnt-surface-2) 70%, var(--pnt-surface-0));
+  --pnt-field-border: color-mix(in srgb, var(--pnt-border-2) 70%, var(--pnt-surface-0));
+  /* The shadow a pinned header or footer casts on the rows scrolling under it.
+     Black at low alpha reads on every ground, so it is not themed, for the
+     same reason as --pnt-scrim just above. */
+  --pnt-shade: rgb(0 0 0 / 0.28);
+
+  /* Two colours that are deliberately NOT themed, kept here so no literal
+     survives in content.css and so the reason travels with the value.
+
+     --pnt-mask is a stencil, not a colour: mask-image only reads its alpha, so
+     any fully opaque value does. Theming it would do nothing but could break
+     the mask if a theme ever set it translucent.
+
+     --pnt-checker is the chequerboard behind a translucent colour swatch. The
+     swatch reports the *inspected page's* colour, so its backdrop has to stay a
+     neutral reference — tinting it per theme would make the tool misreport what
+     it is looking at. Same reason the swatch fill itself is never themed. */
+  --pnt-mask: #000;
+  --pnt-checker: #555;
+
+  /* The colour picker's three constants, non-themed for the same reason as
+     --pnt-checker: they are not decoration, they are the colour space itself.
+     The saturation square is white toward one edge and black toward the other
+     because that is what saturation and value mean, and the hue rail runs the
+     spectrum because that is what hue is. Tinting any of them per theme would
+     make the picker report a colour the page will not actually get. */
+  --pnt-picker-white: #fff;
+  --pnt-picker-black: #000;
+  --pnt-hue-ramp: linear-gradient(to right,
+    #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%);
+}
+
+/* ===== Tier 2: themes =====
+   Twenty-one declarations each. Ordered surfaces → borders → text ramp →
+   accent → syntax → status → shadows → swatch, the same order in every block
+   so they diff cleanly.
+
+   The text ramp is three steps that all clear 4.5:1 against surface-0, plus a
+   fourth — text-4 — that is a disabled tone and never prose, held to the 3:1
+   non-text bar. The 1.x --pnt-text-faint that sat below AA is gone: DESIGN.md
+   §8 recorded the shortfall, and the 2.0 hierarchy (11 / 12 / 13px by weight
+   and tone) is the redesign it said fixing it would take. */
+
+/* Dark — Vermilion. Warm graphite, so the neutrals lean toward the accent;
+   the accent itself is the signal red-orange chosen in round two. The dark
+   theme is derived from the light one, which was designed first. */
+:root,
+[data-pnt-theme="dark"] {
+  --pnt-surface-0: #171412;
+  --pnt-surface-1: #1e1a18;
+  --pnt-surface-2: #282320;
+  --pnt-border-1: #241f1d;
+  --pnt-border-2: #322c29;
+  --pnt-border-3: #453d39;
+  --pnt-text-1: #f1ece8;
+  --pnt-text-2: #b3a9a3;
+  --pnt-text-3: #8c817b;
+  --pnt-text-4: #6e655f;
+  --pnt-accent: #f0452b;
+  --pnt-accent-hover: #f3603f;
+  --pnt-on-accent: #2a0c05;
+  --pnt-syntax-id: #86b6f5;
+  --pnt-syntax-class: #9ccf7a;
+  --pnt-danger: #ff5470;
+  --pnt-on-danger: #2a0a14;
+  --pnt-ok: #3ecf8e;
+  --pnt-shadow-1: 0 1px 2px rgb(0 0 0 / 0.35), 0 10px 28px -14px rgb(0 0 0 / 0.7);
+  --pnt-shadow-2: 0 0 0 1px rgb(255 255 255 / 0.04), 0 24px 48px -24px rgb(0 0 0 / 0.8);
+  --pnt-swatch-border: rgb(255 255 255 / 0.2);
+}
+
+/* Light — Vermilion, the primary. White with a warm tint, and the accent
+   deepened so white ink on it clears 4.5:1. Shadows are re-tuned rather than
+   inverted: the dark theme's blacks read as a smudge on a light surface. */
+[data-pnt-theme="light"] {
+  --pnt-surface-0: #ffffff;
+  --pnt-surface-1: #f8f6f4;
+  --pnt-surface-2: #f0ecea;
+  --pnt-border-1: #eeeae7;
+  --pnt-border-2: #ddd6d2;
+  --pnt-border-3: #c3b9b3;
+  --pnt-text-1: #1d1917;
+  --pnt-text-2: #5c534f;
+  --pnt-text-3: #6d645f;
+  --pnt-text-4: #968c87;
+  --pnt-accent: #d13a1d;
+  --pnt-accent-hover: #b93018;
+  --pnt-on-accent: #ffffff;
+  --pnt-syntax-id: #2a5f9e;
+  --pnt-syntax-class: #4a7a2a;
+  --pnt-danger: #c0164a;
+  --pnt-on-danger: #ffffff;
+  --pnt-ok: #1a7f4b;
+  --pnt-shadow-1: 0 1px 2px rgb(20 20 30 / 0.08), 0 10px 28px -14px rgb(20 20 30 / 0.28);
+  --pnt-shadow-2: 0 0 0 1px rgb(0 0 0 / 0.03), 0 24px 48px -24px rgb(20 20 30 / 0.3);
+  --pnt-swatch-border: rgb(0 0 0 / 0.2);
+}
+
+/* Dracula. The label already colours tag / #id / .class separately, which is
+   exactly what an editor theme defines — so these map onto the palette's own
+   roles rather than being approximated: purple for the accent, cyan for the
+   id, green for the class. Same reasoning in each theme below. Surfaces step
+   from the background toward the current-line colour; text-3 is the comment
+   colour lifted until it clears AA. */
+[data-pnt-theme="dracula"] {
+  --pnt-surface-0: #282a36;
+  --pnt-surface-1: #2d2f3d;
+  --pnt-surface-2: #363948;
+  --pnt-border-1: #34364a;
+  --pnt-border-2: #44475a;
+  --pnt-border-3: #565a73;
+  --pnt-text-1: #f8f8f2;
+  --pnt-text-2: #cfd0e0;
+  --pnt-text-3: #8b93bd;
+  --pnt-text-4: #6272a4;
+  --pnt-accent: #bd93f9;
+  --pnt-accent-hover: #cba8fb;
+  --pnt-on-accent: #1a1626;
+  --pnt-syntax-id: #8be9fd;
+  --pnt-syntax-class: #50fa7b;
+  --pnt-danger: #ff5555;
+  --pnt-on-danger: #1a1626;
+  --pnt-ok: #50fa7b;
+  --pnt-shadow-1: 0 1px 2px rgb(0 0 0 / 0.35), 0 10px 28px -14px rgb(0 0 0 / 0.7);
+  --pnt-shadow-2: 0 0 0 1px rgb(255 255 255 / 0.04), 0 24px 48px -24px rgb(0 0 0 / 0.8);
+  --pnt-swatch-border: rgb(255 255 255 / 0.2);
+}
+
+/* Monokai. */
+[data-pnt-theme="monokai"] {
+  --pnt-surface-0: #272822;
+  --pnt-surface-1: #2d2e27;
+  --pnt-surface-2: #363730;
+  --pnt-border-1: #34352d;
+  --pnt-border-2: #3e3d32;
+  --pnt-border-3: #52514a;
+  --pnt-text-1: #f8f8f2;
+  --pnt-text-2: #d9d8cd;
+  --pnt-text-3: #a29e88;
+  --pnt-text-4: #8a866f;
+  --pnt-accent: #f92672;
+  --pnt-accent-hover: #fa4a88;
+  --pnt-on-accent: #2a0512;
+  --pnt-syntax-id: #66d9ef;
+  --pnt-syntax-class: #a6e22e;
+  --pnt-danger: #ff6188;
+  --pnt-on-danger: #2a0512;
+  --pnt-ok: #a6e22e;
+  --pnt-shadow-1: 0 1px 2px rgb(0 0 0 / 0.35), 0 10px 28px -14px rgb(0 0 0 / 0.7);
+  --pnt-shadow-2: 0 0 0 1px rgb(255 255 255 / 0.04), 0 24px 48px -24px rgb(0 0 0 / 0.8);
+  --pnt-swatch-border: rgb(255 255 255 / 0.2);
+}
+
+/* Nord. */
+[data-pnt-theme="nord"] {
+  --pnt-surface-0: #2e3440;
+  --pnt-surface-1: #353c4a;
+  --pnt-surface-2: #3b4252;
+  --pnt-border-1: #3b4252;
+  --pnt-border-2: #434c5e;
+  --pnt-border-3: #4c566a;
+  --pnt-text-1: #eceff4;
+  --pnt-text-2: #d8dee9;
+  --pnt-text-3: #9aa5bb;
+  --pnt-text-4: #7b88a1;
+  --pnt-accent: #88c0d0;
+  --pnt-accent-hover: #9fd0dd;
+  --pnt-on-accent: #16202b;
+  --pnt-syntax-id: #81a1c1;
+  --pnt-syntax-class: #a3be8c;
+  --pnt-danger: #dd8a92;
+  --pnt-on-danger: #2e3440;
+  --pnt-ok: #a3be8c;
+  --pnt-shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px -14px rgb(0 0 0 / 0.6);
+  --pnt-shadow-2: 0 0 0 1px rgb(255 255 255 / 0.04), 0 24px 48px -24px rgb(0 0 0 / 0.75);
+  --pnt-swatch-border: rgb(255 255 255 / 0.2);
+}
+
+/* Solarized Dark. base03 ground stepping toward base02; the documented accent
+   roles; the greys are base01/base0/base1 shifted up to clear the floors. */
+[data-pnt-theme="solarized-dark"] {
+  --pnt-surface-0: #002b36;
+  --pnt-surface-1: #05323e;
+  --pnt-surface-2: #073642;
+  --pnt-border-1: #073642;
+  --pnt-border-2: #0f4452;
+  --pnt-border-3: #1f5563;
+  --pnt-text-1: #eee8d5;
+  --pnt-text-2: #b8c3c3;
+  --pnt-text-3: #93a1a1;
+  --pnt-text-4: #7a8c8c;
+  --pnt-accent: #e5762f;
+  --pnt-accent-hover: #ec8a4b;
+  --pnt-on-accent: #04202a;
+  --pnt-syntax-id: #3a9ae0;
+  --pnt-syntax-class: #859900;
+  --pnt-danger: #e8524f;
+  --pnt-on-danger: #04202a;
+  --pnt-ok: #859900;
+  --pnt-shadow-1: 0 1px 2px rgb(0 0 0 / 0.35), 0 10px 28px -14px rgb(0 0 0 / 0.7);
+  --pnt-shadow-2: 0 0 0 1px rgb(255 255 255 / 0.04), 0 24px 48px -24px rgb(0 0 0 / 0.8);
+  --pnt-swatch-border: rgb(255 255 255 / 0.2);
+}
+
+/* Tokyo Night. */
+[data-pnt-theme="tokyo-night"] {
+  --pnt-surface-0: #1a1b26;
+  --pnt-surface-1: #1f2335;
+  --pnt-surface-2: #24283b;
+  --pnt-border-1: #24283b;
+  --pnt-border-2: #292e42;
+  --pnt-border-3: #3b4261;
+  --pnt-text-1: #c0caf5;
+  --pnt-text-2: #a9b1d6;
+  --pnt-text-3: #8b93b8;
+  --pnt-text-4: #6d75a0;
+  --pnt-accent: #bb9af7;
+  --pnt-accent-hover: #c9aefa;
+  --pnt-on-accent: #16111f;
+  --pnt-syntax-id: #7aa2f7;
+  --pnt-syntax-class: #9ece6a;
+  --pnt-danger: #f7768e;
+  --pnt-on-danger: #16111f;
+  --pnt-ok: #9ece6a;
+  --pnt-shadow-1: 0 1px 2px rgb(0 0 0 / 0.35), 0 10px 28px -14px rgb(0 0 0 / 0.7);
+  --pnt-shadow-2: 0 0 0 1px rgb(255 255 255 / 0.04), 0 24px 48px -24px rgb(0 0 0 / 0.8);
+  --pnt-swatch-border: rgb(255 255 255 / 0.2);
+}
+
+/* `system` has no block of its own. content.js resolves it through
+   matchMedia("(prefers-color-scheme: dark)") and writes the resolved id —
+   dark or light — into data-pnt-theme. Duplicating every block inside an
+   @media query would double this file and put two copies of each palette out
+   of step the first time one was edited. `system` is the default since 2.0. */
