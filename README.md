@@ -1,38 +1,41 @@
 # Pointee for VS Code
 
-在 **VS Code 内置浏览器（Integrated Browser）** 中拾取元素，把可定位的页面上下文发给任意 AI agent。不是 Chrome 插件，也不是套一层外部浏览器。
+English | [简体中文](README.zh-CN.md)
 
-基于 [Jingquank/pointee](https://github.com/Jingquank/pointee) 3.0 的 MIT 代码，保留原版拾取器、Inspector、实时编辑和测距交互；扩展宿主负责剪贴板、上下文历史、文件导出和真实浏览器截图。本项目不是原作者发布的官方扩展。
+Pick elements in **VS Code's Integrated Browser** and send locatable page context to any AI agent. This is not a Chrome extension or a wrapper around an external browser.
 
-## 安装
+Based on the MIT-licensed code from [Jingquank/pointee](https://github.com/Jingquank/pointee) 3.0. It retains the upstream picker, Inspector, live editing, and distance measurement interactions; the extension host handles the clipboard, context history, file export, and screenshots of the browser's actual rendering. This project is not an official extension published by the upstream author.
 
-需要 **VS Code 1.145.0 或更新版本**。已针对本机 VS Code 1.145.2 编写真实内置浏览器集成测试。
+## Installation
 
-1. 在命令面板执行 `Extensions: Install from VSIX...`，选择项目中的 `pointee-vscode-0.1.0.vsix`。
-2. **完全退出所有 VS Code 进程**，再从终端启动：
+Requires **VS Code 1.145.0 or later**. Integration tests that exercise the actual Integrated Browser were written against a local installation of VS Code 1.145.2.
+
+1. Run `Extensions: Install from VSIX...` in the Command Palette and select `pointee-vscode-0.1.1.vsix` from this project.
+2. **Fully quit all VS Code processes**, then launch it from a terminal:
 
    ```sh
    code --enable-proposed-api pointee.pointee-vscode .
    ```
 
-3. 执行 `Pointee: Open Integrated Browser`，输入开发页面地址。
-4. 点击状态栏 `Pointee`，或按 macOS `Cmd+Alt+P` / Windows、Linux `Ctrl+Alt+P`。
-5. 悬停检查、点击选中，再点页面里的 **Copy Code**。在 Codex、Claude Code、Cursor 或其他 agent 中粘贴，并写上你希望怎样修改。
+3. Run `Pointee: Open Integrated Browser` and enter your development page URL.
+4. Click `Pointee` in the status bar, or press `Cmd+Alt+P` on macOS / `Ctrl+Alt+P` on Windows or Linux.
+5. Hover to inspect, click to select, then click **Copy Code** on the page. Paste into Codex, Claude Code, Cursor, or another agent and describe the changes you want.
 
-**必须显式启用 proposed API。** VS Code 的 `browser` API 尚不是稳定扩展 API，普通安装 VSIX 不会自动授予它。只重新加载窗口通常不足以改变启动参数；无需修改 VS Code 安装目录或开启远程调试端口。F5 调试配置已携带所需参数。此版本适合本地 VSIX 安装，不承诺 Marketplace 发布。
+**You must explicitly enable the proposed API.** VS Code's `browser` API is not yet a stable extension API, and installing the VSIX normally does not grant access to it. Reloading the window alone is usually not enough to change launch arguments. There is no need to modify the VS Code installation directory or enable a remote debugging port. The F5 debug configuration already includes the required arguments. This release is intended for local VSIX installation; Marketplace publication is not guaranteed.
 
-## 功能
+## Features
 
-- **拾取**：原版盒模型高亮、尺寸、字体、颜色、Map / Layers、元素父级。
-- **复制**：页面 URL、唯一 CSS 选择器、文本、HTML、邻居/重复结构、开发工具暴露的源码位置。可选布局、样式和 props 字段。
-- **编辑**：原版样式、文本和设计 token 编辑器；撤销、重做、重置；复制真实的修改前后差异。修改只在页面中预览，不写入源码文件。
-- **测距**：选中后按住 Alt / Option 悬停其他元素。
-- **截图**：通过 CDP 截取浏览器真实渲染结果，包含 canvas/WebGL，自动隐藏拾取器。保存 PNG 并复制**文件绝对路径**，不是系统图片剪贴板；可以直接把路径发给支持读取本地图片的 agent。
-- **上下文历史**：资源管理器中的 `Pointee` 视图。选中后自动记录；可复制整个上下文、打开 Markdown、导出 `.md` 或打开附带截图。
-- **标签页**：支持已有/新建内置浏览器标签页、刷新后恢复拾取。`Pointee: Stop Picking` 停止所有标签页，并撤销本次页面预览修改。
-- **设置**：VS Code 设置中搜索 `pointee`，调整主题、复制字段/HTML 深度、编辑器和测距参数，立即同步至页面。
+- **Picking**: Upstream box-model highlights, dimensions, fonts, colors, Map / Layers, and parent elements.
+- **Copying**: Page URL, unique CSS selector, text, HTML, neighboring/repeated structures, and source locations exposed by development tools. Optional layout, style, and props fields.
+- **Editing**: Upstream style, text, and design token editors; undo, redo, reset; copy the actual before/after diff. Changes are previewed only on the page and do not write to source files.
+- **Distance measurement**: After selecting an element, hold Alt / Option and hover over other elements.
+- **Screenshots**: Capture the browser's actual rendering through CDP, including canvas/WebGL, while automatically hiding the picker. **By default, the image is copied directly to the system clipboard without saving a file**; paste with Cmd+V / Ctrl+V into an agent that supports image input. This differs from v0.1.0, which copied a file path.
+- **Saving screenshots**: When you need an image file, run `Pointee: Save Element Screenshot` to save a PNG, copy its absolute path, and attach it to the current context record. If the image clipboard is unavailable, the extension automatically falls back to this behavior and explicitly notifies you.
+- **Context history**: The `Pointee` view in the Explorer. Selections are recorded automatically; copy the full context, open Markdown, export a `.md` file, or open an attached screenshot.
+- **Tabs**: Supports existing and new Integrated Browser tabs and restores picking after a reload. `Pointee: Stop Picking` stops picking in all tabs and reverts the current page preview changes.
+- **Settings**: Search for `pointee` in VS Code settings to adjust the theme, copied fields/HTML depth, editor options, and measurement parameters. Changes are synchronized to the page immediately.
 
-复制示例：
+Example copied context:
 
 ````text
 ```
@@ -44,21 +47,30 @@
 ```
 ````
 
-源码定位读取 `data-inspector-*`、`data-v-inspector`、`data-source-loc` / `data-source-file` 等现有开发工具标注，不会根据 DOM 猜测源码文件或行号。未提供标注时仍有选择器和 HTML。
+Source locations are read from existing development-tool annotations such as `data-inspector-*`, `data-v-inspector`, and `data-source-loc` / `data-source-file`. The extension does not guess source files or line numbers from the DOM. Selectors and HTML are still available when annotations are absent.
 
-## 范围与隐私
+## Image Clipboard
 
-- 只支持桌面版 VS Code 的 **Integrated Browser**。`Simple Browser`、普通 webview、外部 Chrome 和 vscode.dev 不支持。API 不可用时会明确提示，不会悄悄切换到另一个浏览器。
-- 与上游默认 content script 一样，拾取限于顶层文档；不进入 iframe 或封闭 Shadow DOM。React/Vue 私有运行时对象处于页面的 JavaScript world 中，隔离拾取器不能保证读取它们；源码标注和 `data-component` 可直接读取。
-- WebGL uniform 编辑为上游的尽力支持功能。单帧 canvas 需要打开 `editDeepShaderCapture` 并刷新已启用过拾取器的页面；停止深度捕获后，已经被上游 shader agent 包装过的 WebGL 原型需要刷新页面才能彻底恢复。
-- 不支持 VS Code Remote 中的远程图片路径映射。扩展运行在本地 UI 宿主，截图路径位于本机，不会自动上传到远程 agent。
-- 长元素截图会短暂滚动页面，分块截取后在本机拼接，并恢复原滚动位置。最多 6400 万像素；固定/粘性定位、滚动驱动动画和懒加载内容可能影响跨视口截图结果。PNG 保留浏览器的 ICC 颜色配置，不会为了截图修改设备模拟设置。
-- 不自动发送任何内容给 agent，不修改 agent 配置，不启动监听 HTTP 服务，不依赖其他浏览器/MCP 扩展。
-- 页面数据仅在显式选中后进入内存历史；历史在 VS Code 重启后消失。PNG 保存在扩展的 `globalStorage/pointee.pointee-vscode/screenshots` 中，**清空历史不删除图片**，可从上下文记录中取得绝对路径并手动删除。
-- 剪贴板/Markdown 可能包含页面中可见的敏感信息，发送前请检查。密码控件的 value 不会被主动读取，但 DOM 自身的属性和文本可能包含应用数据。
-- 跨域样式表通过 CDP 读取**当前页面已加载的 CSS**，不会把页面提供的任意 URL 交给扩展宿主请求。无遥测、账号或外部服务。
+- macOS uses the system AppKit clipboard and provides both PNG and TIFF representations for pasting into different applications.
+- Windows uses the system PowerShell / Windows Forms clipboard.
+- Linux Wayland desktops require `wl-copy` (`wl-clipboard`); X11 desktops require `xclip`. If unavailable, the extension saves a file and copies its path rather than pretending the image was copied.
+- Images are piped in memory to native clipboard tools. No temporary image files are written, and there is no dependency on the page's Clipboard API, HTTPS, or page-focus permissions. System-tool failure details are available in the `Pointee` Output panel.
+- Reading PNG data back from the system clipboard has been verified on macOS. The Windows/Linux implementations have command and error-fallback tests but have not yet been verified on actual systems.
+- Images and text share the system clipboard; copying code afterward replaces the image. Copying only an image does not attach a PNG path to context history. Use “Save Element Screenshot” if you need to keep the image persistently.
 
-## 开发
+## Scope and Privacy
+
+- Supports only the **Integrated Browser** in desktop VS Code. `Simple Browser`, ordinary webviews, external Chrome, and vscode.dev are not supported. If the API is unavailable, the extension reports it explicitly rather than silently switching browsers.
+- Like the upstream default content script, picking is limited to the top-level document; it does not enter iframes or closed Shadow DOM. Private React/Vue runtime objects live in the page's JavaScript world, so the isolated picker cannot guarantee access to them. Source annotations and `data-component` can be read directly.
+- WebGL uniform editing is an upstream best-effort feature. For single-frame canvas content, enable `editDeepShaderCapture` and reload a page where the picker has previously been enabled. After stopping deep capture, a page reload is required to fully restore WebGL prototypes already wrapped by the upstream shader agent.
+- Remote image-path mapping in VS Code Remote is not supported. The extension runs in the local UI host; screenshot paths are local and are not automatically uploaded to a remote agent.
+- Screenshots of tall elements briefly scroll the page, capture tiles, stitch them locally, and restore the original scroll position. The limit is 64 million pixels. Fixed/sticky positioning, scroll-driven animations, and lazy-loaded content may affect screenshots spanning multiple viewports. PNGs retain the browser's ICC color profile; device emulation settings are not changed for screenshots.
+- Nothing is automatically sent to an agent. The extension does not modify agent configuration, start an HTTP server, or depend on other browser/MCP extensions.
+- Page data enters in-memory history only after an explicit selection; history is lost when VS Code restarts. Default screenshots go only to the system clipboard and do not create image files. When explicitly saved or saved as a clipboard-failure fallback, PNGs are stored in the extension's `globalStorage/pointee.pointee-vscode/screenshots` directory. **Clearing history does not delete these images**; retrieve their absolute paths from context records and delete them manually. Existing v0.1.0 screenshots are not deleted automatically.
+- Clipboard/Markdown content may contain sensitive information visible on the page; review it before sending. Password-input values are not actively read, but DOM attributes and text may themselves contain application data.
+- Cross-origin stylesheets are read through CDP from **CSS already loaded by the current page**. Arbitrary URLs supplied by the page are not passed to the extension host for fetching. No telemetry, accounts, or external services.
+
+## Development
 
 ```sh
 npm ci
@@ -68,17 +80,19 @@ npm run test:integration
 npm run package
 ```
 
-在 VS Code 打开项目后按 F5 启动扩展开发宿主。修改后运行 `npm run build`，再重新加载开发宿主。`npm run watch` 监听 TypeScript 扩展代码；改动页面适配脚本或 vendor 文件后需重新运行 build。
+Open the project in VS Code and press F5 to launch the Extension Development Host. After making changes, run `npm run build` and reload the development host. `npm run watch` watches the TypeScript extension code; changes to page adapter scripts or vendor files require another build.
 
-`npm run test:integration` 启动隔离的 VS Code 测试实例，真实打开内置浏览器并发送 CDP 鼠标/键盘输入；不会写入你日常 VS Code 的设置或安装扩展。可用 `VSCODE_EXECUTABLE_PATH` 指定本机编辑器可执行文件，否则优先使用 macOS 用户应用目录，再下载指定的测试版本。截图证据在 `test-results/integration/`。
+`npm run test:integration` launches an isolated VS Code test instance, opens the actual Integrated Browser, and sends CDP mouse/keyboard input. It does not write to your everyday VS Code settings or install extensions there. Set `VSCODE_EXECUTABLE_PATH` to use a local editor executable; otherwise, it first tries the macOS user Applications directory, then downloads the specified test version. Screenshot evidence is saved in `test-results/integration/`.
 
-`npm run test:ui` 使用 Playwright 检查桌面/移动尺寸下的原版界面并生成截图，需要已安装 Chromium 或用 `PLAYWRIGHT_CHROMIUM_EXECUTABLE` 指定 Chromium 系浏览器。
+Integration tests operate on the actual system clipboard to verify PNG readback and pasting. Linux also requires the corresponding clipboard read/write tools (`wl-copy`/`wl-paste` or `xclip`).
 
-`vendor/pointee/UPSTREAM.json` 固定上游提交。原文件保持不改动，`scripts/build.mjs` 使用 TypeScript AST 安装受控适配钩子，构建时找不到钩子会失败。刷新 vendor 使用 `node scripts/vendor.mjs`。
+`npm run test:ui` uses Playwright to check the upstream UI at desktop/mobile sizes and generate screenshots. It requires an installed Chromium browser, or a Chromium-based browser specified with `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
 
-## 扩展接口
+`vendor/pointee/UPSTREAM.json` pins the upstream commit. Original files remain unchanged; `scripts/build.mjs` uses the TypeScript AST to install controlled adaptation hooks and fails the build if a hook cannot be found. Refresh the vendor files with `node scripts/vendor.mjs`.
 
-其他 VS Code 扩展可调用已注册的 `pointee.*` 命令，或者激活扩展后读取：
+## Extension API
+
+Other VS Code extensions can invoke the registered `pointee.*` commands, or activate the extension and access:
 
 ```ts
 const pointee = await vscode.extensions
@@ -87,8 +101,10 @@ const selected = await pointee?.getSelectedElement();
 const latest = pointee?.getLatestContext();
 ```
 
-上下文含 `url`、`selector`、`pointer`、`rect`，记录另含 `capturedAt` 和可选 `screenshotPath`。扩展不把 DOM 文本当成 agent 指令执行。
+Context includes `url`, `selector`, `pointer`, and `rect`; records also include `capturedAt` and an optional `screenshotPath`. The extension does not execute DOM text as agent instructions.
+
+Starting with v0.1.1, `pointee.screenshot` copies the image by default and returns `{ destination: "clipboard" }`; `pointee.saveScreenshot` returns `{ destination: "file", path, fallback: false }`. When the default clipboard operation fails and falls back to saving a file, it returns a file result with `fallback: true`.
 
 ## License
 
-MIT。上游代码及署名见 `vendor/pointee/LICENSE`；内嵌 Geist 字体遵循 `vendor/pointee/fonts/OFL.txt`。
+MIT. See `vendor/pointee/LICENSE` for upstream code and attribution; the bundled Geist fonts are covered by `vendor/pointee/fonts/OFL.txt`.
