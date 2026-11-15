@@ -2,11 +2,13 @@ import * as vscode from "vscode";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { once } from "node:events";
-import { mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdir, writeFile, rm, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { PNG } from "pngjs";
 import { CDPClient } from "../../src/cdp";
 import { fixture } from "../fixture";
+import { readClipboardPNG } from "../native-clipboard";
+import { ScreenshotResult } from "../../src/screenshot-delivery";
 
 async function until<T>(check: () => Promise<T> | T, message: string, timeout = 12000): Promise<T> {
   const end = Date.now() + timeout;
@@ -18,7 +20,7 @@ async function until<T>(check: () => Promise<T> | T, message: string, timeout = 
 }
 
 export async function run(): Promise<void> {
-  const extension = vscode.extensions.getExtension("pointee.pointee-vscode");
+  const extension = vscode.extensions.getExtension("pointee-vscode.pointee-vscode");
   if (!extension) throw new Error("Pointee extension was not loaded.");
   const api = await extension.activate();
   if (!api.isBrowserAvailable()) throw new Error("Proposed browser API was not enabled.");
@@ -37,6 +39,15 @@ export async function run(): Promise<void> {
   const clients: CDPClient[] = [];
   const results = join(extension.extensionPath, "test-results", "integration");
   const originalTheme = vscode.workspace.getConfiguration("pointee").inspect<string>("theme")?.globalValue;
+  const screenshotDirectory = process.env.POINTEE_TEST_SCREENSHOT_DIRECTORY;
+  assert(screenshotDirectory, "test runner provides the isolated screenshot directory");
+  const savedScreenshots = async () => {
+    try { return (await readdir(screenshotDirectory)).sort(); }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw error;
+    }
+  };
   await mkdir(results, { recursive: true });
   await Promise.all(["failure.txt", "failure.png"].map(file => rm(join(results, file), { force: true })));
 
@@ -131,24 +142,81 @@ export async function run(): Promise<void> {
     assert.match(await vscode.env.clipboard.readText(), /font-size:.*16px.*22px/);
     console.log("PASS: live style editing and before/after agent payload");
 
-    const screenshotPath = await vscode.commands.executeCommand<string>("pointee.screenshot");
-    assert(screenshotPath?.endsWith(".png"));
-    const png = PNG.sync.read(Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(screenshotPath))));
+    const filesBeforeCopy = await savedScreenshots();
+    const copiedImage = await vscode.commands.executeCommand<ScreenshotResult>("pointee.screenshot");
+    assert.deepEqual(copiedImage, { destination: "clipboard" });
+    const clipboardPNG = await readClipboardPNG();
+    const png = PNG.sync.read(clipboardPNG);
     const screenshotScale = png.width / 280;
     assert(Math.abs(png.height - 160 * screenshotScale) <= 1, "screenshot preserves element dimensions");
     const pixel = ((png.height - 20) * png.width + png.width - 20) * 4;
     assert.deepEqual([...png.data.subarray(pixel, pixel + 3)], expectedGreen, "real element pixels, no overlay");
-    assert.equal(await vscode.env.clipboard.readText(), screenshotPath);
-    assert.equal(api.getLatestContext().screenshotPath, screenshotPath);
-    await writeFile(join(results, "element.png"), PNG.sync.write(png));
+    assert.equal(await vscode.env.clipboard.readText(), "", "image clipboard must not contain the old text path");
+    assert.equal(api.getLatestContext().screenshotPath, undefined);
+    assert.deepEqual(await savedScreenshots(), filesBeforeCopy, "copying an image must not save a screenshot file");
+    await writeFile(join(results, "element.png"), clipboardPNG);
     const screen = await cdp.send("Page.captureScreenshot", { format: "png" });
     await writeFile(join(results, "desktop.png"), Buffer.from(screen.data, "base64"));
-    console.log("PASS: actual browser PNG capture, exact dimensions and pixels, path clipboard, context attachment");
+    console.log("PASS: actual screenshot -> native PNG clipboard, exact pixels, no path text, no screenshot file");
+
+    await cdp.evaluate(`(() => {
+      window.pastedScreenshot = null;
+      const target = document.createElement("div");
+      target.id = "pointee-test-paste";
+      target.contentEditable = "true";
+      Object.assign(target.style, {position:"fixed",left:"0",top:"0",width:"1px",height:"1px",opacity:"0"});
+      target.addEventListener("paste", async event => {
+        event.preventDefault();
+        const file = [...event.clipboardData.files].find(item => item.type.startsWith("image/"));
+        if (!file) { window.pastedScreenshot = {type:"missing",types:[...event.clipboardData.types]}; return; }
+        const image = await createImageBitmap(file);
+        window.pastedScreenshot = {type:file.type,width:image.width,height:image.height};
+        image.close();
+      });
+      document.body.append(target);
+      target.focus({preventScroll:true});
+    })()`);
+    const pasteModifiers = process.platform === "darwin" ? 4 : 2;
+    await cdp.send("Input.dispatchKeyEvent", {
+      type: "keyDown", key: "v", code: "KeyV", windowsVirtualKeyCode: 86,
+      modifiers: pasteModifiers, commands: ["paste"],
+    });
+    await cdp.send("Input.dispatchKeyEvent", {
+      type: "keyUp", key: "v", code: "KeyV", windowsVirtualKeyCode: 86, modifiers: pasteModifiers,
+    });
+    const pasted = await until(() => cdp.evaluate<{ type: string; width: number; height: number } | null>("window.pastedScreenshot"), "native image paste event");
+    assert(pasted);
+    assert.equal(pasted.type, "image/png");
+    assert.equal(pasted.width, png.width);
+    assert.equal(pasted.height, png.height);
+    await cdp.evaluate("document.getElementById('pointee-test-paste').remove()");
+    console.log("PASS: native clipboard image pastes into the integrated browser as an image/png file");
+
+    const savedImage = await vscode.commands.executeCommand<ScreenshotResult>("pointee.saveScreenshot");
+    assert(savedImage?.destination === "file" && !savedImage.fallback);
+    assert(savedImage.path.startsWith(screenshotDirectory));
+    const savedPNG = PNG.sync.read(Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(savedImage.path))));
+    assert.equal(savedPNG.width, png.width);
+    assert.equal(savedPNG.height, png.height);
+    assert.equal(await vscode.env.clipboard.readText(), savedImage.path);
+    assert.equal(api.getLatestContext().screenshotPath, savedImage.path);
+    console.log("PASS: explicit save retains the original PNG file/path/context workflow");
 
     await vscode.commands.executeCommand("pointee.stopPicker");
     assert.equal(await cdp.evaluate("getComputedStyle(document.getElementById('target')).fontSize"), "16px", "stopping restores styles");
     assert.equal(await cdp.evaluate("Boolean(document.getElementById('pnt-edit-panel'))"), false);
     assert.equal(await vscode.commands.executeCommand("pointee.togglePicker"), true);
+    await click("#target");
+    const filesBeforeToolbar = await savedScreenshots();
+    await vscode.env.clipboard.writeText("before screenshot toolbar");
+    await click('[data-action="shot"]');
+    await until(async () => {
+      try { return (await readClipboardPNG()).length > 8; } catch { return false; }
+    }, "toolbar wrote an image to the native clipboard");
+    await until(() => cdp.evaluate("document.getElementById('pnt-toast')?.textContent.includes('Image copied to clipboard')"), "image copy toast");
+    assert.deepEqual(await savedScreenshots(), filesBeforeToolbar);
+    assert.equal(api.getLatestContext().screenshotPath, undefined);
+    console.log("PASS: actual screenshot toolbar copies PNG, displays the correct success state, creates no file");
     await click('[id="price:pro/2026"]');
     await until(() => api.getLatestContext()?.title?.includes("article"), "special ID selection");
     selected = await api.getSelectedElement();
@@ -174,9 +242,8 @@ export async function run(): Promise<void> {
     await click("#below");
     await until(async () => (await api.getSelectedElement()).selector === "article#below", "below-viewport selection");
     await cdp.evaluate("scrollTo(0,0)");
-    const offscreenPath = await vscode.commands.executeCommand<string>("pointee.screenshot");
-    assert(offscreenPath);
-    const offscreen = PNG.sync.read(Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(offscreenPath))));
+    assert.deepEqual(await vscode.commands.executeCommand("pointee.screenshot"), { destination: "clipboard" });
+    const offscreen = PNG.sync.read(await readClipboardPNG());
     assert(Math.abs(offscreen.height - offscreen.width / 2) <= 1);
     const offscreenPixel = ((offscreen.height - 20) * offscreen.width + offscreen.width - 20) * 4;
     const red = [...offscreen.data.subarray(offscreenPixel, offscreenPixel + 3)];
@@ -198,9 +265,9 @@ export async function run(): Promise<void> {
     await vscode.commands.executeCommand("pointee.selectParent");
     await until(async () => (await api.getSelectedElement()).selector === "section#tall", "tall element selection");
     const tallScroll = await cdp.evaluate<number>("scrollY");
-    const tallPath = await vscode.commands.executeCommand<string>("pointee.screenshot");
-    assert(tallPath);
-    const tall = PNG.sync.read(Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(tallPath))));
+    assert.deepEqual(await vscode.commands.executeCommand("pointee.screenshot"), { destination: "clipboard" });
+    const tallBytes = await readClipboardPNG();
+    const tall = PNG.sync.read(tallBytes);
     const tallScale = tall.height / 1000;
     assert(Math.abs(tall.width - 200 * tallScale) <= 1, "stitched screenshot preserves dimensions at native pixel scale");
     const firstPixel = (Math.round(250 * tallScale) * tall.width + 20) * 4;
@@ -210,7 +277,9 @@ export async function run(): Promise<void> {
     assert(firstBand[0] > firstBand[1] * 2, "first stitched band is red");
     assert(secondBand[2] > secondBand[0] * 2, "second stitched band is blue");
     assert.equal(await cdp.evaluate("scrollY"), tallScroll);
-    await writeFile(join(results, "tall-element.png"), await vscode.workspace.fs.readFile(vscode.Uri.file(tallPath)));
+    await writeFile(join(results, "tall-element.png"), tallBytes);
+    const tallSaved = await vscode.commands.executeCommand<ScreenshotResult>("pointee.saveScreenshot");
+    assert(tallSaved?.destination === "file" && !tallSaved.fallback);
     console.log("PASS: multi-viewport screenshot stitching, color bands, scroll restoration");
 
     const second = await vscode.commands.executeCommand<vscode.BrowserTab>("pointee.openBrowser", `${url}/second`);

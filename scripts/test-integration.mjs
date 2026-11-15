@@ -13,9 +13,12 @@ if (!executable) {
 await runTests({
   extensionDevelopmentPath: root,
   extensionTestsPath: `${root}/dist/index.js`,
+  extensionTestsEnv: {
+    POINTEE_TEST_SCREENSHOT_DIRECTORY: join(root, ".vscode-test", "user-data", "User", "globalStorage", "pointee-vscode.pointee-vscode", "screenshots"),
+  },
   vscodeExecutablePath: executable,
   launchArgs: [
-    "--enable-proposed-api=pointee.pointee-vscode",
+    "--enable-proposed-api=pointee-vscode.pointee-vscode",
     "--disable-extensions",
     "--skip-welcome",
     "--skip-release-notes",

@@ -5,8 +5,10 @@ import { CDPClient } from "./cdp";
 import { ContextHistory } from "./history";
 import { ContextRecord, ElementSnapshot, formatContext } from "./model";
 import { toPagePreferences } from "./preferences";
+import { writeImageClipboard } from "./image-clipboard";
+import { deliverScreenshot } from "./screenshot-delivery";
 
-const EXTENSION_ID = "pointee.pointee-vscode";
+const EXTENSION_ID = "pointee-vscode.pointee-vscode";
 const API_HELP = `Pointee needs VS Code's proposed browser API. Close VS Code completely and launch it with: code --enable-proposed-api ${EXTENSION_ID}`;
 let shutdown: (() => Promise<void>) | undefined;
 
@@ -82,14 +84,28 @@ export function activate(context: vscode.ExtensionContext) {
           if (snapshot) history.add(snapshot);
           await vscode.env.clipboard.writeText(text);
         },
-        screenshot: async (data, snapshot) => {
-          const directory = vscode.Uri.joinPath(context.globalStorageUri, "screenshots");
-          await vscode.workspace.fs.createDirectory(directory);
-          const uri = vscode.Uri.joinPath(directory, `element-${Date.now()}-${randomUUID().slice(0, 8)}.png`);
-          await vscode.workspace.fs.writeFile(uri, data);
-          history.add(snapshot, uri.fsPath);
-          await vscode.env.clipboard.writeText(uri.fsPath);
-          return uri.fsPath;
+        screenshot: async (data, snapshot, destination) => {
+          const result = await deliverScreenshot(data, {
+            copyImage: writeImageClipboard,
+            saveFile: async png => {
+              const directory = vscode.Uri.joinPath(context.globalStorageUri, "screenshots");
+              await vscode.workspace.fs.createDirectory(directory);
+              const uri = vscode.Uri.joinPath(directory, `element-${Date.now()}-${randomUUID().slice(0, 8)}.png`);
+              await vscode.workspace.fs.writeFile(uri, png);
+              return uri.fsPath;
+            },
+            copyPath: async path => { await vscode.env.clipboard.writeText(path); },
+            onClipboardError: error => output.appendLine(`Image clipboard: ${error}`),
+          }, destination);
+          history.add(snapshot, result.destination === "file" ? result.path : null);
+          if (result.destination === "clipboard") {
+            vscode.window.setStatusBarMessage("$(check) Pointee: Image copied to clipboard", 4000);
+          } else if (result.fallback) {
+            void vscode.window.showWarningMessage("Pointee: Image clipboard unavailable. Screenshot saved and its file path copied. See the Pointee output for details.");
+          } else {
+            vscode.window.setStatusBarMessage("$(check) Pointee: Screenshot saved; path copied", 4000);
+          }
+          return result;
         },
         settings: async () => { await vscode.commands.executeCommand("workbench.action.openSettings", "pointee"); },
         store: async values => {
@@ -144,6 +160,7 @@ export function activate(context: vscode.ExtensionContext) {
   });
   register("copySelection", async () => (await getPicker()).copy());
   register("screenshot", async () => (await getPicker()).capture());
+  register("saveScreenshot", async () => (await getPicker()).capture(undefined, "file"));
   register("selectParent", async () => (await getPicker()).parent());
   register("editSelection", async () => (await getPicker()).edit());
   register("copyRecord", async (record: ContextRecord = history.latest!) => {

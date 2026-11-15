@@ -10,18 +10,18 @@
 
 需要 **VS Code 1.145.0 或更新版本**。已针对本机 VS Code 1.145.2 编写真实内置浏览器集成测试。
 
-1. 在命令面板执行 `Extensions: Install from VSIX...`，选择项目中的 `pointee-vscode-0.1.1.vsix`。
+1. 在扩展视图安装 [Pointee for VS Code](https://marketplace.visualstudio.com/items?itemName=pointee-vscode.pointee-vscode)，或在命令面板执行 `Extensions: Install from VSIX...`，选择本地的 `pointee-vscode-0.1.1.vsix` 安装包。
 2. **完全退出所有 VS Code 进程**，再从终端启动：
 
    ```sh
-   code --enable-proposed-api pointee.pointee-vscode .
+   code --enable-proposed-api pointee-vscode.pointee-vscode .
    ```
 
 3. 执行 `Pointee: Open Integrated Browser`，输入开发页面地址。
 4. 点击状态栏 `Pointee`，或按 macOS `Cmd+Alt+P` / Windows、Linux `Ctrl+Alt+P`。
 5. 悬停检查、点击选中，再点页面里的 **Copy Code**。在 Codex、Claude Code、Cursor 或其他 agent 中粘贴，并写上你希望怎样修改。
 
-**必须显式启用 proposed API。** VS Code 的 `browser` API 尚不是稳定扩展 API，普通安装 VSIX 不会自动授予它。只重新加载窗口通常不足以改变启动参数；无需修改 VS Code 安装目录或开启远程调试端口。F5 调试配置已携带所需参数。此版本适合本地 VSIX 安装，不承诺 Marketplace 发布。
+**必须显式启用 proposed API。** VS Code 的 `browser` API 尚不是稳定扩展 API，从 Marketplace 或 VSIX 安装都不会自动授予它。只重新加载窗口通常不足以改变启动参数；无需修改 VS Code 安装目录或开启远程调试端口。F5 调试配置已携带所需参数。
 
 ## 功能
 
@@ -66,7 +66,7 @@
 - 不支持 VS Code Remote 中的远程图片路径映射。扩展运行在本地 UI 宿主，截图路径位于本机，不会自动上传到远程 agent。
 - 长元素截图会短暂滚动页面，分块截取后在本机拼接，并恢复原滚动位置。最多 6400 万像素；固定/粘性定位、滚动驱动动画和懒加载内容可能影响跨视口截图结果。PNG 保留浏览器的 ICC 颜色配置，不会为了截图修改设备模拟设置。
 - 不自动发送任何内容给 agent，不修改 agent 配置，不启动监听 HTTP 服务，不依赖其他浏览器/MCP 扩展。
-- 页面数据仅在显式选中后进入内存历史；历史在 VS Code 重启后消失。默认截图仅进入系统剪贴板，不创建图片文件。主动保存或剪贴板失败兜底时，PNG 保存在扩展的 `globalStorage/pointee.pointee-vscode/screenshots` 中；**清空历史不删除这些图片**，可从上下文记录中取得绝对路径并手动删除。已有 v0.1.0 截图不会自动删除。
+- 页面数据仅在显式选中后进入内存历史；历史在 VS Code 重启后消失。默认截图仅进入系统剪贴板，不创建图片文件。主动保存或剪贴板失败兜底时，PNG 保存在扩展的 `globalStorage/pointee-vscode.pointee-vscode/screenshots` 中；**清空历史不删除这些图片**，可从上下文记录中取得绝对路径并手动删除。已有 v0.1.0 截图不会自动删除。
 - 剪贴板/Markdown 可能包含页面中可见的敏感信息，发送前请检查。密码控件的 value 不会被主动读取，但 DOM 自身的属性和文本可能包含应用数据。
 - 跨域样式表通过 CDP 读取**当前页面已加载的 CSS**，不会把页面提供的任意 URL 交给扩展宿主请求。无遥测、账号或外部服务。
 
@@ -90,13 +90,15 @@ npm run package
 
 `vendor/pointee/UPSTREAM.json` 固定上游提交。原文件保持不改动，`scripts/build.mjs` 使用 TypeScript AST 安装受控适配钩子，构建时找不到钩子会失败。刷新 vendor 使用 `node scripts/vendor.mjs`。
 
+发布到 Marketplace 时，先以 publisher 身份完成认证，再运行 `npm run publish:marketplace`。该命令只显式允许 `browser` proposal；用户启动 VS Code 时仍需启用它。
+
 ## 扩展接口
 
 其他 VS Code 扩展可调用已注册的 `pointee.*` 命令，或者激活扩展后读取：
 
 ```ts
 const pointee = await vscode.extensions
-  .getExtension("pointee.pointee-vscode")?.activate();
+  .getExtension("pointee-vscode.pointee-vscode")?.activate();
 const selected = await pointee?.getSelectedElement();
 const latest = pointee?.getLatestContext();
 ```

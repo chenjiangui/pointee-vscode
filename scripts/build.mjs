@@ -37,10 +37,15 @@ replaceFunction("copyScreenshot", `async function copyScreenshot(el, btnEl) {
   flashButton(btnEl);
   const cancelLoading = setButtonLoading(btnEl);
   try {
-    await pointee.screenshot();
+    const result = await pointee.screenshot();
     cancelLoading();
-    setButtonSuccess(btnEl, "Saved!");
-    showToast("Screenshot saved; path copied");
+    if (result.destination === "clipboard") {
+      setButtonSuccess(btnEl, "Copied!");
+      showToast("Image copied to clipboard");
+    } else {
+      setButtonSuccess(btnEl, "Saved!");
+      showToast(result.fallback ? "Image clipboard unavailable; saved and path copied" : "Screenshot saved; path copied", result.fallback);
+    }
   } catch (error) {
     cancelLoading();
     resetButton(btnEl);

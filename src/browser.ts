@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { CDPClient, CDPEvent } from "./cdp";
 import { ElementSnapshot, validateSnapshot } from "./model";
 import { captureRegion } from "./screenshot";
+import { ScreenshotDestination, ScreenshotResult } from "./screenshot-delivery";
 import bridgeSource from "./page-bridge.js?raw";
 import inspectorCSS from "./inspector.css?raw";
 import shaderSource from "../vendor/pointee/shader-agent.js?raw";
@@ -10,7 +11,7 @@ export interface BrowserHost {
   preferences(): Record<string, string>;
   selection(snapshot: ElementSnapshot | null): Promise<void>;
   copy(text: string, snapshot?: ElementSnapshot): Promise<void>;
-  screenshot(data: Uint8Array, snapshot: ElementSnapshot): Promise<string>;
+  screenshot(data: Uint8Array, snapshot: ElementSnapshot, destination: ScreenshotDestination): Promise<ScreenshotResult>;
   store(values: Record<string, string>): Promise<void>;
   settings(): Promise<void>;
   state(active: boolean): void;
@@ -175,7 +176,7 @@ export class BrowserPicker {
     await this.call("edit()");
   }
 
-  async capture(snapshot?: ElementSnapshot): Promise<string> {
+  async capture(snapshot?: ElementSnapshot, destination: ScreenshotDestination = "clipboard"): Promise<ScreenshotResult> {
     if (this.screenshotInProgress) throw new Error("A screenshot is already being captured.");
     this.screenshotInProgress = true;
     const generation = this.navigation;
@@ -188,14 +189,15 @@ export class BrowserPicker {
       if (width > 32768 || height > 32768 || width * height > 64_000_000) {
         throw new Error("This element is too large to capture. Select a smaller element.");
       }
+      let data: Buffer;
       await this.call("hide(true)");
       try {
-        const data = await captureRegion(this.cdp, current.rect, this.contextId);
+        data = await captureRegion(this.cdp, current.rect, this.contextId);
         if (generation !== this.navigation) throw new Error("Page navigated during screenshot capture.");
-        return await this.host.screenshot(data, current);
       } finally {
         if (this.contextId) await this.call("hide(false)").catch(error => this.host.log(`Restore overlay: ${error}`));
       }
+      return await this.host.screenshot(data, current, destination);
     } finally { this.screenshotInProgress = false; }
   }
 

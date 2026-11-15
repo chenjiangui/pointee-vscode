@@ -9,14 +9,15 @@ export class ContextHistory implements vscode.TreeDataProvider<ContextRecord>, v
   readonly onDidChangeTreeData = this.changed.event;
   get latest(): ContextRecord | undefined { return this.records[0]; }
 
-  add(snapshot: ElementSnapshot, screenshotPath?: string): ContextRecord {
+  add(snapshot: ElementSnapshot, screenshotPath?: string | null): ContextRecord {
     const existing = this.latest;
     const reuse = existing?.url === snapshot.url && existing.selector === snapshot.selector;
     const record: ContextRecord = {
       ...snapshot,
       id: reuse ? existing.id : randomUUID(),
       capturedAt: new Date().toISOString(),
-      screenshotPath: screenshotPath ?? (reuse && existing.pointer === snapshot.pointer ? existing.screenshotPath : undefined),
+      screenshotPath: screenshotPath === null ? undefined
+        : screenshotPath ?? (reuse && existing.pointer === snapshot.pointer ? existing.screenshotPath : undefined),
     };
     if (reuse) this.records[0] = record;
     else this.records.unshift(record);

@@ -23,11 +23,15 @@ try {
     let selected;
     await page.setContent(fixture);
     await page.addStyleTag({ content: css });
+    let screenshotRequests = 0;
+    let screenshotResult = { destination: "clipboard" };
     await page.exposeFunction("__testPointee", async raw => {
       const request = JSON.parse(raw);
       if (request.type === "SELECTION") selected = request.snapshot;
       if (request.type === "COPY_TEXT") copied = request.text;
-      await page.evaluate(({ id }) => globalThis.__pointeeVSCode.reply(id, null, null), request);
+      if (request.type === "SCREENSHOT") screenshotRequests++;
+      const result = request.type === "SCREENSHOT" ? screenshotResult : null;
+      await page.evaluate(({ id, result }) => globalThis.__pointeeVSCode.reply(id, result, null), { ...request, result });
     });
     await page.evaluate(`(${bridge})(${JSON.stringify({
       binding: "__testPointee",
@@ -52,6 +56,15 @@ try {
       assert(box.y >= -1 && box.bottom <= viewport.height + 1, `${name}: ${box.id} is vertically visible`);
     }
     await page.screenshot({ path: `test-results/ui/${name}-selection.png` });
+    await page.locator('[data-action="shot"]').click();
+    await page.waitForFunction(() => document.getElementById("pnt-toast")?.textContent.includes("Image copied to clipboard"));
+    assert.equal(screenshotRequests, 1, `${name}: screenshot action reaches the host`);
+    await page.waitForFunction(() => !document.querySelector('[data-action="shot"]').disabled);
+    screenshotResult = { destination: "file", path: "/tmp/fallback.png", fallback: true };
+    await page.locator('[data-action="shot"]').click();
+    await page.waitForFunction(() => document.getElementById("pnt-toast")?.textContent.includes("Image clipboard unavailable"));
+    assert.equal(screenshotRequests, 2, `${name}: fallback feedback is distinct from image-copy success`);
+    assert((await page.locator('[data-action="shot"]').textContent()).includes("Saved!"));
     await page.locator('[data-action="edit"]').click();
     await page.waitForSelector("#pnt-edit-panel");
     await page.waitForTimeout(500);

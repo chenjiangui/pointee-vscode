@@ -10,18 +10,18 @@ Based on the MIT-licensed code from [Jingquank/pointee](https://github.com/Jingq
 
 Requires **VS Code 1.145.0 or later**. Integration tests that exercise the actual Integrated Browser were written against a local installation of VS Code 1.145.2.
 
-1. Run `Extensions: Install from VSIX...` in the Command Palette and select `pointee-vscode-0.1.1.vsix` from this project.
+1. Install [Pointee for VS Code](https://marketplace.visualstudio.com/items?itemName=pointee-vscode.pointee-vscode) from the Extensions view, or run `Extensions: Install from VSIX...` in the Command Palette and select a local `pointee-vscode-0.1.1.vsix` package.
 2. **Fully quit all VS Code processes**, then launch it from a terminal:
 
    ```sh
-   code --enable-proposed-api pointee.pointee-vscode .
+   code --enable-proposed-api pointee-vscode.pointee-vscode .
    ```
 
 3. Run `Pointee: Open Integrated Browser` and enter your development page URL.
 4. Click `Pointee` in the status bar, or press `Cmd+Alt+P` on macOS / `Ctrl+Alt+P` on Windows or Linux.
 5. Hover to inspect, click to select, then click **Copy Code** on the page. Paste into Codex, Claude Code, Cursor, or another agent and describe the changes you want.
 
-**You must explicitly enable the proposed API.** VS Code's `browser` API is not yet a stable extension API, and installing the VSIX normally does not grant access to it. Reloading the window alone is usually not enough to change launch arguments. There is no need to modify the VS Code installation directory or enable a remote debugging port. The F5 debug configuration already includes the required arguments. This release is intended for local VSIX installation; Marketplace publication is not guaranteed.
+**You must explicitly enable the proposed API.** VS Code's `browser` API is not yet a stable extension API, and neither Marketplace nor VSIX installation automatically grants access to it. Reloading the window alone is usually not enough to change launch arguments. There is no need to modify the VS Code installation directory or enable a remote debugging port. The F5 debug configuration already includes the required arguments.
 
 ## Features
 
@@ -66,7 +66,7 @@ Source locations are read from existing development-tool annotations such as `da
 - Remote image-path mapping in VS Code Remote is not supported. The extension runs in the local UI host; screenshot paths are local and are not automatically uploaded to a remote agent.
 - Screenshots of tall elements briefly scroll the page, capture tiles, stitch them locally, and restore the original scroll position. The limit is 64 million pixels. Fixed/sticky positioning, scroll-driven animations, and lazy-loaded content may affect screenshots spanning multiple viewports. PNGs retain the browser's ICC color profile; device emulation settings are not changed for screenshots.
 - Nothing is automatically sent to an agent. The extension does not modify agent configuration, start an HTTP server, or depend on other browser/MCP extensions.
-- Page data enters in-memory history only after an explicit selection; history is lost when VS Code restarts. Default screenshots go only to the system clipboard and do not create image files. When explicitly saved or saved as a clipboard-failure fallback, PNGs are stored in the extension's `globalStorage/pointee.pointee-vscode/screenshots` directory. **Clearing history does not delete these images**; retrieve their absolute paths from context records and delete them manually. Existing v0.1.0 screenshots are not deleted automatically.
+- Page data enters in-memory history only after an explicit selection; history is lost when VS Code restarts. Default screenshots go only to the system clipboard and do not create image files. When explicitly saved or saved as a clipboard-failure fallback, PNGs are stored in the extension's `globalStorage/pointee-vscode.pointee-vscode/screenshots` directory. **Clearing history does not delete these images**; retrieve their absolute paths from context records and delete them manually. Existing v0.1.0 screenshots are not deleted automatically.
 - Clipboard/Markdown content may contain sensitive information visible on the page; review it before sending. Password-input values are not actively read, but DOM attributes and text may themselves contain application data.
 - Cross-origin stylesheets are read through CDP from **CSS already loaded by the current page**. Arbitrary URLs supplied by the page are not passed to the extension host for fetching. No telemetry, accounts, or external services.
 
@@ -90,13 +90,15 @@ Integration tests operate on the actual system clipboard to verify PNG readback 
 
 `vendor/pointee/UPSTREAM.json` pins the upstream commit. Original files remain unchanged; `scripts/build.mjs` uses the TypeScript AST to install controlled adaptation hooks and fails the build if a hook cannot be found. Refresh the vendor files with `node scripts/vendor.mjs`.
 
+For Marketplace publishing, authenticate as the publisher and run `npm run publish:marketplace`. This explicitly allows only the `browser` proposal; users must still enable it when launching VS Code.
+
 ## Extension API
 
 Other VS Code extensions can invoke the registered `pointee.*` commands, or activate the extension and access:
 
 ```ts
 const pointee = await vscode.extensions
-  .getExtension("pointee.pointee-vscode")?.activate();
+  .getExtension("pointee-vscode.pointee-vscode")?.activate();
 const selected = await pointee?.getSelectedElement();
 const latest = pointee?.getLatestContext();
 ```
